@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blueprint Battle</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            background-color: #000000; /* Black background */
+            margin: 0;
+            padding: 0;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // =================================================================================
+        // I. CONFIGURATION & GAME SETTINGS
+        // =================================================================================
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        /**
+         * Defines the color palette for the "Living Blueprint" aesthetic.
+         */
+        const PALETTE = {
+            base: '#000000',
+            primaryStroke: '#9EE7FF',
+            dimStroke: '#3A5F7F',
+            glowAccent: '#00FFF7',
+            errorAccent: '#FF5C5C'
+        };
+        
+        // =================================================================================
+        // II. GAME STATE & MANAGEMENT
+        // =================================================================================
+
+        let player, arena;
+        const camera = { x: 0, y: 0, rotation: 0, targetRotation: 0, lerpFactor: 0.1, shake: 0 };
+        let bullets = [];
+        let backgroundPattern;
+        const keys = {
+            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, Shift: false
+        };
+
+        // =================================================================================
+        // III. CORE CLASSES (Arena, Tank, Bullet)
+        // =================================================================================
+
+        /**
+         * A utility function for smooth linear interpolation.
+         * @param {number} a - The starting value.
+         * @param {number} b - The ending value.
+         * @param {number} t - The interpolation factor (0 to 1).
+         * @returns {number} The interpolated value.
+         */
+        const lerp = (a, b, t) => a + (b - a) * t;
+        
+        /**
+         * Represents a bullet fired by a Tank.
+         */
+        class Bullet {
+            constructor(x, y, heading) {
+                this.x = x; this.y = y; this.heading = heading;
+                this.speed = 100;
+                this.drag = 0.97;
+                this.life = 120; this.radius = 6;
+            }
+
+            update() {
+                this.x += Math.cos(this.heading) * this.speed;
+                this.y += Math.sin(this.heading) * this.speed;
+                this.speed *= this.drag;
+                this.life--;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.fillStyle = PALETTE.glowAccent;
+                ctx.shadowColor = PALETTE.glowAccent;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        /**
+         * Represents the player-controlled Tank.
+         */
+        class Tank {
+            constructor(gridX, gridY) {
+                this.gridX = gridX; // The logical target grid position
+                this.gridY = gridY;
+                this.worldX = this.gridX * arena.tileSize; 
+                this.worldY = this.gridY * arena.tileSize;
+                
+                this.heading = -Math.PI / 2;
+                this.displayHeading = this.heading;
+                
+                this.hasAmmo = false;
+                this.isSpeedMode = false;
+                this.moveCooldown = 0;
+                this.shieldAlpha = 1.0;
+            }
+            
+            /**
+             * Updates the tank's state each frame (movement, animations, etc.).
+             */
+            update() {
+                this.isSpeedMode = keys.Shift;
+                if (this.moveCooldown > 0) this.moveCooldown--;
+
+                // Animate shield alpha based on speed mode
+                this.shieldAlpha = this.isSpeedMode ? Math.max(0, this.shieldAlpha - 0.1) : Math.min(1, this.shieldAlpha + 0.1);
+
+                // Animate heading
+                let diff = this.heading - this.displayHeading;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                this.displayHeading += diff * 0.15;
+
+                // Animate world position
+                const targetWorldX = this.gridX * arena.tileSize;
+                const targetWorldY = this.gridY * arena.tileSize;
+                this.worldX = lerp(this.worldX, targetWorldX, 0.2);
+                this.worldY = lerp(this.worldY, targetWorldY, 0.2);
+            }
+
+            /**
+             * Moves the tank's logical position on the grid.
+             * @param {number} direction - 1 for forward, -1 for backward.
+             */
+            move(direction) {
+                const dx = Math.round(Math.cos(this.heading));
+                const dy = Math.round(Math.sin(this.heading));
+                const nextGridX = this.gridX + dx * direction;
+                const nextGridY = this.gridY + dy * direction;
+
+                if (arena.hasTileAt(nextGridX, nextGridY)) {
+                    this.gridX = nextGridX;
+                    this.gridY = nextGridY;
+                }
+            }
+
+            /**
+             * Rotates the tank's heading.
+             * @param {number} direction - 1 for right, -1 for left.
+             */
+            rotate(direction) {
+                this.heading += (Math.PI / 2) * direction;
+            }
+
+            /**
+             * Handles the 'Space' key action: either fires a bullet or picks up ammo.
+             */
+            interact() {
+                if (this.hasAmmo) {
+                    bullets.push(new Bullet(this.worldX, this.worldY, this.heading));
+                    this.hasAmmo = false;
+                    camera.shake = 15;
+                } else {
+                    const key = `${this.gridX},${this.gridY}`;
+                    const tile = arena.tiles.get(key);
+                    if (tile && tile.hasAmmo) {
+                        this.hasAmmo = true;
+                        tile.hasAmmo = false;
+                    }
+                }
+            }
+        }
+        
+        /**
+         * Manages the game grid, including tile generation and drawing.
+         */
+        class Arena {
+            constructor(worldSize, tileSize) {
+                this.worldSize = worldSize; this.tileSize = tileSize;
+                this.tiles = new Map();
+                this.tileRatio = 0.9;
+                this._generate();
+            }
+
+            /**
+             * Procedurally generates the grid of tiles.
+             */
+            _generate() {
+                const maxGridCoord = this.worldSize / this.tileSize / 2;
+                for (let gx = -maxGridCoord; gx < maxGridCoord; gx++) {
+                    for (let gy = -maxGridCoord; gy < maxGridCoord; gy++) {
+                        if (Math.random() > 0.3) {
+                            this.tiles.set(`${gx},${gy}`, { hasAmmo: Math.random() > 0.8 });
+                        }
+                    }
+                }
+                if (!this.tiles.has('0,0')) this.tiles.set('0,0', {hasAmmo: false});
+            }
+
+            /**
+             * Checks if a tile exists at the given grid coordinates.
+             * @param {number} gx - The grid x-coordinate.
+             * @param {number} gy - The grid y-coordinate.
+             * @returns {boolean}
+             */
+            hasTileAt(gx, gy) { return this.tiles.has(`${gx},${gy}`); }
+
+            /**
+             * Draws the entire arena, including the grid, tiles, and the player tank.
+             */
+            draw() {
+                const innerSize = this.tileSize * this.tileRatio;
+                const halfInnerSize = innerSize / 2;
+                const maxGridCoord = this.worldSize / this.tileSize / 2;
+                const worldHalf = this.worldSize / 2;
+
+                // Draw grid lines
+                ctx.strokeStyle = PALETTE.dimStroke;
+                ctx.globalAlpha = 0.25;
+                ctx.lineWidth = 1;
+                for (let i = -maxGridCoord; i <= maxGridCoord; i++) {
+                    const p = i * this.tileSize;
+                    ctx.beginPath(); ctx.moveTo(p, -worldHalf); ctx.lineTo(p, worldHalf); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(-worldHalf, p); ctx.lineTo(worldHalf, p); ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                
+                // Draw tiles and ammo
+                this.tiles.forEach((tile, key) => {
+                    const [gx, gy] = key.split(',').map(Number);
+                    const x = gx * this.tileSize; const y = gy * this.tileSize;
+                    
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 1;
+                    ctx.globalAlpha = 0.2; 
+                    ctx.strokeRect(x - halfInnerSize, y - halfInnerSize, innerSize, innerSize);
+
+                    ctx.font = '12px Inter';
+                    ctx.fillStyle = PALETTE.dimStroke;
+                    ctx.globalAlpha = 0.25;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(`[${String.fromCharCode(65 + gx + maxGridCoord)}-${gy + maxGridCoord}]`, x, y + halfInnerSize - 15);
+                    ctx.beginPath();
+                    ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y);
+                    ctx.moveTo(x, y - 5); ctx.lineTo(x, y + 5);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+
+                    if (tile.hasAmmo) {
+                        ctx.strokeStyle = PALETTE.glowAccent;
+                        ctx.lineWidth = 1.5;
+                        ctx.setLineDash([4, 4]);
+                        ctx.beginPath();
+                        ctx.arc(x, y, 12, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                });
+                
+                // Draw Player Tank
+                const playerWorldX = player.worldX;
+                const playerWorldY = player.worldY;
+                ctx.strokeStyle = PALETTE.errorAccent;
+                ctx.shadowColor = PALETTE.errorAccent;
+                ctx.shadowBlur = 15;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(playerWorldX - halfInnerSize, playerWorldY - halfInnerSize, innerSize, innerSize);
+                ctx.shadowBlur = 0;
+
+                if (player.hasAmmo) {
+                    ctx.save();
+                    ctx.fillStyle = PALETTE.glowAccent;
+                    ctx.shadowColor = PALETTE.glowAccent;
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(playerWorldX, playerWorldY, 15, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                // Draw Directional Shield
+                if (player.shieldAlpha > 0) {
+                    ctx.save();
+                    ctx.translate(playerWorldX, playerWorldY);
+                    ctx.rotate(player.displayHeading);
+                    
+                    const arc = { radius: halfInnerSize + 30, arcWidth: Math.PI / 1.2, lineWidth: 3 };
+                    ctx.strokeStyle = PALETTE.glowAccent;
+                    ctx.shadowColor = PALETTE.glowAccent;
+                    ctx.shadowBlur = 10;
+                    ctx.globalAlpha = player.shieldAlpha;
+                    ctx.lineWidth = arc.lineWidth;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, arc.radius, -arc.arcWidth / 2, arc.arcWidth / 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        }
+
+        // =================================================================================
+        // IV. CORE GAME LOOP
+        // =================================================================================
+
+        /**
+         * Handles continuous input for smooth gliding movement.
+         */
+        function handleContinuousInput() {
+            if (player.isSpeedMode) {
+                if (player.moveCooldown > 0) return;
+                let moved = false;
+                if (keys.ArrowUp) { player.move(1); moved = true; }
+                else if (keys.ArrowDown) { player.move(-1); moved = true; }
+                if (moved) {
+                    player.moveCooldown = 5;
+                }
+            }
+        }
+
+        /**
+         * The main game loop, called every frame.
+         */
+        function gameLoop() {
+            handleContinuousInput();
+            player.update();
+
+            // Update camera to follow player with a look-ahead
+            const lookAheadDistance = player.isSpeedMode ? 250 : 150;
+            let cameraTargetX = player.worldX;
+            let cameraTargetY = player.worldY;
+            if (keys.ArrowUp || keys.ArrowDown) {
+                cameraTargetX += Math.cos(player.heading) * lookAheadDistance;
+                cameraTargetY += Math.sin(player.heading) * lookAheadDistance;
+            }
+            camera.x = lerp(camera.x, cameraTargetX, camera.lerpFactor);
+            camera.y = lerp(camera.y, cameraTargetY, camera.lerpFactor);
+            
+            const targetRotation = -player.heading - Math.PI / 2;
+            let diff = targetRotation - camera.rotation;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            camera.rotation += diff * camera.lerpFactor;
+
+            // Clear canvas and draw background
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = backgroundPattern;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Apply camera transforms and draw world-space elements
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            if (camera.shake > 1) {
+                ctx.translate((Math.random() - 0.5) * camera.shake, (Math.random() - 0.5) * camera.shake);
+                camera.shake *= 0.9;
+            }
+            ctx.rotate(camera.rotation);
+            ctx.translate(-camera.x, -camera.y);
+            
+            arena.draw();
+            bullets.forEach((p, i) => {
+                p.update();
+                p.draw();
+                if (p.life <= 0) bullets.splice(i, 1);
+            });
+            ctx.restore();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // =================================================================================
+        // V. EVENT LISTENERS
+        // =================================================================================
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key in keys) keys[e.key] = true;
+            if (e.repeat) return;
+            switch (e.key) {
+                case ' ': player.interact(); break;
+                case 'ArrowLeft': player.rotate(-1); break;
+                case 'ArrowRight': player.rotate(1); break;
+                case 'ArrowUp': if (!keys.Shift) player.move(1); break;
+                case 'ArrowDown': if (!keys.Shift) player.move(-1); break;
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key in keys) keys[e.key] = false;
+        });
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            backgroundPattern = createBackgroundPattern();
+        };
+
+        // =================================================================================
+        // VI. INITIALIZATION
+        // =================================================================================
+
+        /**
+         * Creates the repeating dot-grid background pattern.
+         * @returns {CanvasPattern}
+         */
+        function createBackgroundPattern() {
+            const patternCanvas = document.createElement('canvas');
+            const patternCtx = patternCanvas.getContext('2d');
+            const size = 20;
+            const dotRadius = 0.5;
+            patternCanvas.width = size;
+            patternCanvas.height = size;
+            patternCtx.fillStyle = PALETTE.base;
+            patternCtx.fillRect(0, 0, size, size);
+            patternCtx.fillStyle = PALETTE.dimStroke;
+            patternCtx.globalAlpha = 0.2;
+            patternCtx.beginPath();
+            patternCtx.arc(size / 2, size / 2, dotRadius, 0, Math.PI * 2);
+            patternCtx.fill();
+            return ctx.createPattern(patternCanvas, 'repeat');
+        }
+
+        /**
+         * Initializes the game state and starts the main loop.
+         */
+        function init() {
+            backgroundPattern = createBackgroundPattern();
+            arena = new Arena(8000, 250);
+            player = new Tank(0, 0);
+            
+            camera.x = player.worldX; camera.y = player.worldY;
+            camera.rotation = -player.heading - Math.PI / 2;
+            
+            gameLoop();
+        }
+
+        window.onload = init;
+
+    </script>
+</body>
+</html>

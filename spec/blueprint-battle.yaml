@@ -1,0 +1,39 @@
+# Canonical Blueprint Battle gameplay balance constants
+# All numbers that affect gameplay should live here for easy tuning.
+
+arena:
+  world_size: 8000            # Total side length of the square world, in px
+  tile_size: 250              # Size of a single walkable square, in px
+  tile_ratio: 0.9             # % of a tile that is drawn as the inner neon square
+  tile_density: 0.7           # Probability that a tile exists at a grid coord (1 - skip chance)
+  ammo_spawn_probability: 0.2 # Chance that a given tile initially spawns a cyan ammo circle
+
+player:
+  move_cooldown_speed_mode: 5   # Frames between auto‐steps while sprinting (Shift held)
+  shield_alpha_rate: 0.1        # Speed at which shield fades in/out each frame
+  heading_interp: 0.15          # Interpolation factor for tank rotation smoothing
+  position_interp: 0.2          # Interpolation factor for tank position smoothing
+  rotation_step_deg: 90         # Degrees rotated per ArrowLeft/ArrowRight press
+  look_ahead:
+    normal: 150                 # Camera look-ahead distance when walking
+    speed_mode: 250             # Camera look-ahead distance when sprinting
+  shield:
+    radius_offset: 30           # Extra pixels added to half tile size for shield arc radius
+    arc_width_deg: 150          # Degrees of shield coverage (front arc)
+    line_width: 3               # Stroke width of shield arc in px
+
+bullet:
+  initial_speed: 100    # Starting velocity of a fired ball
+  drag: 0.97            # Per-frame drag multiplier applied to speed
+  life_frames: 120      # Lifetime of a bullet before it disappears
+  radius: 6             # Render radius of a bullet in px
+
+camera:
+  lerp_factor: 0.1         # Interpolation factor for camera position/rotation
+  shake_magnitude: 15      # Initial shake offset applied on shot
+  shake_decay: 0.9         # Per-frame decay multiplier for shake magnitude
+
+background_pattern:
+  cell_size: 20   # Grid cell size (px) of the repeating dot background
+  dot_radius: 0.5 # Radius of each dot (px)
+  dot_alpha: 0.2  # Transparency of dots (0-1)

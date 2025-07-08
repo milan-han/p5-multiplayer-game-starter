@@ -1,14 +1,17 @@
 
-<h1 align="center">
-  <br>
-      <img src="https://i.ibb.co/jMstmV4/logo.jpg" alt="codeheir logo" title="Codeheir"  height="200" />
-  <br>
 
-  p5-multiplayer-game-starter
-  <br>
-</h1>
+In this project: A cloned P5-MULTIPLAYER-GAME-STARTER template for a simple web game. A @public/prototype.html demo single player html showcasing came physics, ui, and world in it's simplest form.
 
-<h4 align="center">A p5/node.js/express/socket.io starter to allow you to quickly develop multiplayer games</h4>
+The Current goal is to translate the simple prototype into this MULTIPLAYER-GAME-STARTER to create a very simple multiplayer game: 
+
+1. Join website. Presented with a name enter box in center screen over blurred backround of live field. Once user enters name, He is loaded in game as a square and begins playing. In short, a working prototype that will be hosted on render.com, with no need for seperate big scale features like multiple rooms.
+
+
+
+
+### ReadMe P5-MULTIPLAYER-GAME-STARTER from GitHub: 
+
+A p5/node.js/express/socket.io starter to allow you to quickly develop multiplayer games</h4>
 
 
 
