@@ -22,31 +22,21 @@
         canvas {
             display: block;
         }
-        #ui {
-            position: absolute;
-            top: var(--ui-position-top);
-            left: var(--ui-position-left);
-            color: var(--color-css-text);
-            font-size: var(--font-size-ui);
-            font-weight: var(--font-weight-ui);
-            z-index: 1000;
-            pointer-events: none;
-            display: none; /* Hide DOM UI elements - using Canvas UI instead */
-        }
     </style>
 </head>
 <body data-no-autofill data-password-managers="off" autocomplete="off">
     <canvas id="gameCanvas" data-no-autofill="true"></canvas>
-    <div id="ui" data-no-autofill="true">
-        <div id="killstreak" data-no-autofill="true">Kill Streak: 0</div>
-        <div id="ammo" data-no-autofill="true">Ammo: 0</div>
-    </div>
     <!-- Phase 10: Animation System Components -->
     <script src="DeltaTime.js"></script>
     <script src="InterpolationBuffer.js"></script>
     <script src="AnimationStateMachine.js"></script>
     <script src="NetworkManager.js"></script>
     <script src="AnimationManager.js"></script>
+    
+    <!-- Centralized UI System Components -->
+    <script src="UIComponents.js"></script>
+    <script src="UIState.js"></script>
+    <script src="UIManager.js"></script>
     
     <!-- Existing Components -->
     <script src="ClientArena.js"></script>

@@ -5,30 +5,282 @@
  */
 
 :root {
-    /* Colors */
+    /* Color System */
     --color-base: #000000;
+    --color-white: #FFFFFF;
+    --color-primary: #9EE7FF;
+    --color-primary-dim: #3A5F7F;
+    --color-accent-cyan: #00FFF7;
+    --color-accent-error: #FF5C5C;
+    --color-ui-cyan: #26c6da;
+    --color-ui-background: rgba(38, 198, 218, 0.12);
+    --color-ui-border: rgba(38, 198, 218, 0.8);
+    --color-ui-text-dim: rgba(38, 198, 218, 0.7);
+    --color-tile-outline: #FFFFFF;
+    --color-arena-grid: #3A5F7F;
     --color-primary-stroke: #9EE7FF;
     --color-dim-stroke: #3A5F7F;
     --color-glow-accent: #00FFF7;
     --color-error-accent: #FF5C5C;
-    --color-white: #FFFFFF;
+    --color-leaderboard-cyan: #26c6da;
+    --color-leaderboard-bg: rgba(38, 198, 218, 0.12);
+    --color-leaderboard-dim-cyan: rgba(38, 198, 218, 0.7);
     --color-css-background: #000000;
     --color-css-text: #9EE7FF;
-    
-    /* Typography */
+
+    /* Typography System */
     --font-primary: Inter;
-    --font-size-ui: 16px;
-    --font-weight-ui: 600;
-    
-    /* UI Layout */
-    --ui-position-top: 20px;
-    --ui-position-left: 20px;
-    
-    /* CSS Override values */
+    --font-title: Menlo, Monaco, "SF Mono", "Courier New", monospace;
+    --font-monospace: Monaco, "Lucida Console", monospace;
+    --font-size-display-large: 36px;
+    --font-size-display-medium: 30px;
+    --font-size-display-small: 24px;
+    --font-size-heading-large: 20px;
+    --font-size-heading-medium: 16px;
+    --font-size-heading-small: 14px;
+    --font-size-body-large: 16px;
+    --font-size-body-medium: 14px;
+    --font-size-body-small: 12px;
+    --font-size-caption: 11px;
+    --font-size-label: 10px;
+    --font-weight-light: 300;
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+    --letter-spacing-tight: -0.02em;
+    --letter-spacing-normal: 0em;
+    --letter-spacing-wide: 0.05em;
+    --letter-spacing-wider: 0.08em;
+    --letter-spacing-widest: 0.1em;
+    --line-height-tight: 1;
+    --line-height-normal: 1.2;
+    --line-height-relaxed: 1.4;
+    --line-height-loose: 1.6;
+
+    /* UI Spacing System */
+    --login-background-alpha: 0.85px;
+    --login-input-width: 345px;
+    --login-input-height: 55px;
+    --login-button-width: 345px;
+    --login-button-height: 55px;
+    --login-element-spacing: 45px;
+    --login-font-size: 16px;
+    --login-title-font-size: 30px;
+    --login-title-glow-intensity: 55px;
+    --login-glow-intensity: 30px;
+    --login-border-width: 1px;
+    --login-input-background-alpha: 0.05px;
+    --login-button-inner-glow-alpha: 0.15px;
+    --login-frosted-glass-alpha: 0.12px;
+    --login-frosted-glass-blur: 8px;
+    --login-padding-vertical: 20px;
+    --leaderboard-width: 220px;
+    --leaderboard-row-height: 28px;
+    --leaderboard-max-players: 10px;
+    --leaderboard-font-size: 13px;
+    --leaderboard-header-font-size: 15px;
+    --leaderboard-padding: 15px;
+    --leaderboard-border-width: 1px;
+    --leaderboard-divider-alpha: 0.3px;
+    --leaderboard-top-player-glow-intensity: 15px;
+    --leaderboard-regular-player-alpha: 0.7px;
+    --leaderboard-pulse-speed: 0.02px;
+    --leaderboard-frosted-glass-alpha: 0.18px;
+    --leaderboard-inner-padding: 12px;
+    --killstreak-width: 180px;
+    --killstreak-height: 55px;
+    --killstreak-font-size: 16px;
+    --killstreak-label-font-size: 12px;
+    --killstreak-glow-intensity: 8px;
+    --killstreak-spacing: 8px;
+    --killstreak-frosted-glass-alpha: 0.18px;
+    --killstreak-padding: 12px;
+    --killstreak-border-width: 1px;
+
+    /* Animation System */
+    --anim-interpolation-delay-ms: 33ms;
+    --anim-interpolation-buffer-size: 10;
+    --anim-delta-time-smoothing: 0.1;
+    --anim-ease-out-cubic: 0.25;
+    --anim-ease-in-out-quad: 0.5;
+    --anim-ease-linear: 1;
+    --anim-shield-glow-fade-ms: 200ms;
+    --anim-muzzle-flash-duration-ms: 83ms;
+    --anim-hit-flash-duration-ms: 133ms;
+    --anim-death-fade-duration-ms: 500ms;
+    --anim-respawn-flash-duration-ms: 300ms;
+    --anim-position-lerp-factor: 0.8;
+    --anim-rotation-lerp-factor: 0.15;
+    --anim-camera-lerp-factor: 0.1;
+    --anim-alpha-fade-rate: 0.02;
+    --anim-glow-pulse-speed: 0.005;
+    --anim-shake-decay-rate: 0.9;
+    --anim-trail-fade-rate: 0.8;
+    --anim-movement-state-transition-ms: 50ms;
+    --anim-combat-state-transition-ms: 100ms;
+    --anim-effect-state-transition-ms: 16ms;
+    --anim-target-fps: 60;
+    --anim-max-delta-time: 0.033;
+    --anim-min-delta-time: 0.008;
+
+    /* Visual Effects */
+    --visual-tank-shadow-blur: 15;
+    --visual-tank-line-width: 2;
+    --visual-ammo-indicator-radius: 15;
+    --visual-bullet-trail-length: 5;
+    --visual-bullet-glow-shadow-blur: 10;
+    --visual-bullet-inner-alpha: 0.8;
+    --visual-bullet-inner-radius-ratio: 0.5;
+    --visual-bullet-trail-alpha: 0.6;
+    --visual-bullet-fade-threshold: 0.3;
+    --visual-bullet-visibility-margin: 4;
+    --visual-arena-tile-alpha: 0.25;
+    --visual-arena-tile-line-width: 1;
+    --visual-arena-ammo-alpha: 0.4;
+    --visual-arena-ammo-line-width: 1.5;
+    --visual-arena-grid-alpha: 0.4;
+    --visual-arena-grid-line-width: 1;
+    --visual-arena-label-alpha: 0.25;
+    --visual-arena-ammo-radius: 12;
+    --visual-arena-ammo-shadow-blur: 8;
+    --visual-shield-shadow-blur: 10;
+
+    /* CSS Override Values */
     --body-background: #000000;
-    --ui-text-color: #9EE7FF;
-    --ui-font-size: 16px;
-    --ui-font-weight: 600;
-    --ui-top-offset: 20px;
-    --ui-left-offset: 20px;
+
 }
+
+/* Typography Style Classes */
+.typography-display-title {
+    font-family: var(--font-title);
+    font-size: var(--font-size-display-medium);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--letter-spacing-wider);
+    line-height: var(--line-height-tight);
+}
+
+.typography-panel-header {
+    font-family: var(--font-title);
+    font-size: var(--font-size-heading-medium);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--letter-spacing-widest);
+    line-height: var(--line-height-normal);
+}
+
+.typography-ui-primary {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-body-medium);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-normal);
+    line-height: var(--line-height-normal);
+}
+
+.typography-ui-secondary {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--letter-spacing-normal);
+    line-height: var(--line-height-normal);
+}
+
+.typography-data-display {
+    font-family: var(--font-monospace);
+    font-size: var(--font-size-body-medium);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--letter-spacing-wide);
+    line-height: var(--line-height-normal);
+}
+
+.typography-button-text {
+    font-family: var(--font-monospace);
+    font-size: var(--font-size-body-medium);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--letter-spacing-widest);
+    line-height: var(--line-height-normal);
+}
+
+.typography-input-text {
+    font-family: var(--font-monospace);
+    font-size: var(--font-size-body-medium);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--letter-spacing-normal);
+    line-height: var(--line-height-normal);
+}
+
+.typography-error-text {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--letter-spacing-normal);
+    line-height: var(--line-height-normal);
+}
+
+.typography-success-text {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--letter-spacing-normal);
+    line-height: var(--line-height-normal);
+}
+
+.typography-kill-streak {
+    font-family: var(--font-title);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--letter-spacing-wider);
+    line-height: var(--line-height-tight);
+}
+
+.typography-countdown {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-display-large);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--letter-spacing-normal);
+    line-height: var(--line-height-tight);
+}
+
+/* Color Utility Classes */
+.color-base { color: var(--color-base); }
+.color-base-bg { background-color: var(--color-base); }
+.color-white { color: var(--color-white); }
+.color-white-bg { background-color: var(--color-white); }
+.color-primary { color: var(--color-primary); }
+.color-primary-bg { background-color: var(--color-primary); }
+.color-primary-dim { color: var(--color-primary-dim); }
+.color-primary-dim-bg { background-color: var(--color-primary-dim); }
+.color-accent-cyan { color: var(--color-accent-cyan); }
+.color-accent-cyan-bg { background-color: var(--color-accent-cyan); }
+.color-accent-error { color: var(--color-accent-error); }
+.color-accent-error-bg { background-color: var(--color-accent-error); }
+.color-ui-cyan { color: var(--color-ui-cyan); }
+.color-ui-cyan-bg { background-color: var(--color-ui-cyan); }
+.color-ui-background { color: var(--color-ui-background); }
+.color-ui-background-bg { background-color: var(--color-ui-background); }
+.color-ui-border { color: var(--color-ui-border); }
+.color-ui-border-bg { background-color: var(--color-ui-border); }
+.color-ui-text-dim { color: var(--color-ui-text-dim); }
+.color-ui-text-dim-bg { background-color: var(--color-ui-text-dim); }
+.color-tile-outline { color: var(--color-tile-outline); }
+.color-tile-outline-bg { background-color: var(--color-tile-outline); }
+.color-arena-grid { color: var(--color-arena-grid); }
+.color-arena-grid-bg { background-color: var(--color-arena-grid); }
+.color-primary-stroke { color: var(--color-primary-stroke); }
+.color-primary-stroke-bg { background-color: var(--color-primary-stroke); }
+.color-dim-stroke { color: var(--color-dim-stroke); }
+.color-dim-stroke-bg { background-color: var(--color-dim-stroke); }
+.color-glow-accent { color: var(--color-glow-accent); }
+.color-glow-accent-bg { background-color: var(--color-glow-accent); }
+.color-error-accent { color: var(--color-error-accent); }
+.color-error-accent-bg { background-color: var(--color-error-accent); }
+.color-leaderboard-cyan { color: var(--color-leaderboard-cyan); }
+.color-leaderboard-cyan-bg { background-color: var(--color-leaderboard-cyan); }
+.color-leaderboard-bg { color: var(--color-leaderboard-bg); }
+.color-leaderboard-bg-bg { background-color: var(--color-leaderboard-bg); }
+.color-leaderboard-dim-cyan { color: var(--color-leaderboard-dim-cyan); }
+.color-leaderboard-dim-cyan-bg { background-color: var(--color-leaderboard-dim-cyan); }
+.color-css-background { color: var(--color-css-background); }
+.color-css-background-bg { background-color: var(--color-css-background); }
+.color-css-text { color: var(--color-css-text); }
+.color-css-text-bg { background-color: var(--color-css-text); }

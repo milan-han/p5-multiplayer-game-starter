@@ -92,8 +92,8 @@ class AnimationManager {
         this.ctx.save();
         
         // Translate to screen center (CSS pixels)
-        const dpr = window.devicePixelRatio || 1;
-        this.ctx.translate(this.canvas.width / (2 * dpr), this.canvas.height / (2 * dpr));
+        const center = DPR.logicalCenter();
+        this.ctx.translate(center.x, center.y);
         
         // Apply camera shake
         if (camera.shake > CONFIG.camera.shake_threshold) {
@@ -108,7 +108,7 @@ class AnimationManager {
         this.ctx.scale(camera.zoom, camera.zoom);
         
         // Pixel-snap translation for crisp rendering
-        const factor = camera.zoom * dpr;
+        const factor = camera.zoom * DPR.get();
         const roundedCamX = Math.round(camera.x * factor) / factor;
         const roundedCamY = Math.round(camera.y * factor) / factor;
         this.ctx.translate(-roundedCamX, -roundedCamY);
@@ -190,27 +190,11 @@ class AnimationManager {
         this.renderGlobalEffects();
     }
     
-    // Render UI layer
+    // Render UI layer - UI now handled by UIManager
     renderUI(gameState, myPlayerId) {
-        if (!gameState.tanks) return;
-        
-        const myTank = gameState.tanks.find(tank => tank.id === myPlayerId);
-        if (!myTank) return;
-        
-        this.ctx.save();
-        
-        // Draw kill streak display
-        this.drawKillStreakDisplay(myTank.killStreak);
-        
-        // Draw leaderboard
-        this.drawLeaderboard(gameState.tanks, myPlayerId);
-        
-        // Draw death screen if applicable
-        if (!myTank.alive) {
-            this.drawDeathScreen(myTank);
-        }
-        
-        this.ctx.restore();
+        // UI rendering moved to UIManager for consistency
+        // This method kept for backward compatibility but does nothing
+        return;
     }
     
     // Render a single tank with animation state
@@ -509,192 +493,8 @@ class AnimationManager {
         this.performanceStats.drawCalls++;
     }
     
-    // Draw kill streak display with proper state isolation
-    drawKillStreakDisplay(killStreak) {
-        this.saveCanvasState();
-        
-        // Implementation using existing code from game.js
-        const dpr = window.devicePixelRatio || 1;
-        const logicalCanvasWidth = this.canvas.width / dpr;
-        const logicalCanvasHeight = this.canvas.height / dpr;
-        
-        const logicalRight = CONFIG.ui.killstreak_display.position.right;
-        const logicalBottom = CONFIG.ui.killstreak_display.position.bottom;
-        const width = CONFIG.ui.killstreak_display.width;
-        const height = CONFIG.ui.killstreak_display.height;
-        
-        const x = logicalCanvasWidth - logicalRight - width;
-        const y = logicalCanvasHeight - logicalBottom - height;
-        
-        // Draw frosted glass background
-        this.drawFrostedGlassPanel(x, y, width, height);
-        
-        // Draw kill streak text
-        const centerX = x + width / 2;
-        const centerY = y + height / 2;
-        const displayText = `KILL STREAK: ${killStreak}`;
-        
-        this.setBatchState({
-            fillStyle: CONFIG.colors.leaderboard_cyan,
-            font: `${CONFIG.ui.killstreak_display.label_font_size}px ${CONFIG.typography.title_font}`,
-            textAlign: 'center',
-            textBaseline: 'middle'
-        });
-        
-        if (killStreak > 0) {
-            const pulseIntensity = Math.sin(this.deltaTime.getRenderTime() * 5) * 0.3 + 1;
-            this.setBatchState({
-                shadowBlur: CONFIG.ui.killstreak_display.glow_intensity * pulseIntensity,
-                shadowColor: CONFIG.colors.leaderboard_cyan
-            });
-        }
-        
-        this.ctx.fillText(displayText, centerX, centerY);
-        
-        this.restoreCanvasState();
-        this.performanceStats.drawCalls++;
-    }
-    
-    // Draw leaderboard with proper state isolation
-    drawLeaderboard(tanks, myPlayerId) {
-        if (!tanks || tanks.length === 0) return;
-        
-        this.saveCanvasState();
-        
-        const dpr = window.devicePixelRatio || 1;
-        const logicalCanvasWidth = this.canvas.width / dpr;
-        
-        const x = logicalCanvasWidth - CONFIG.ui.leaderboard.position.right - CONFIG.ui.leaderboard.width;
-        const y = CONFIG.ui.leaderboard.position.top;
-        
-        // Sort players by kill streak
-        const sortedPlayers = tanks
-            .map(tank => ({
-                ...tank,
-                displayName: tank.name || `Player ${tank.id.substring(0, 6)}`
-            }))
-            .sort((a, b) => b.killStreak - a.killStreak)
-            .slice(0, CONFIG.ui.leaderboard.max_players);
-        
-        const panelHeight = CONFIG.ui.leaderboard.padding * 2 + 
-                           CONFIG.ui.leaderboard.row_height * (sortedPlayers.length + 1.5);
-        
-        // Draw frosted glass background
-        this.drawFrostedGlassPanel(x, y, CONFIG.ui.leaderboard.width, panelHeight);
-        
-        // Draw header
-        this.setBatchState({
-            fillStyle: CONFIG.colors.leaderboard_cyan,
-            font: `${CONFIG.ui.leaderboard.title_font_weight} ${CONFIG.ui.leaderboard.header_font_size}px ${CONFIG.typography.title_font}`,
-            textAlign: 'center',
-            textBaseline: 'middle'
-        });
-        
-        const headerY = y + CONFIG.ui.leaderboard.padding + CONFIG.ui.leaderboard.row_height / 2;
-        this.ctx.fillText('LEADERBOARD', x + CONFIG.ui.leaderboard.width / 2, headerY);
-        
-        // Draw players
-        sortedPlayers.forEach((player, index) => {
-            const rowY = y + CONFIG.ui.leaderboard.padding + CONFIG.ui.leaderboard.row_height * (index + 2);
-            const playerColor = `rgb(${player.rgb.r}, ${player.rgb.g}, ${player.rgb.b})`;
-            
-            this.setBatchState({
-                fillStyle: playerColor,
-                font: `${CONFIG.ui.leaderboard.font_size}px ${CONFIG.typography.primary_font}`,
-                textAlign: 'left',
-                globalAlpha: player.id === myPlayerId ? 1 : CONFIG.ui.leaderboard.regular_player_alpha
-            });
-            
-            // Draw player name
-            this.ctx.fillText(player.displayName.toUpperCase(), x + CONFIG.ui.leaderboard.inner_padding, rowY);
-            
-            // Draw kill streak
-            this.setBatchState({
-                font: `${CONFIG.ui.leaderboard.font_size}px ${CONFIG.typography.monospace_font}`,
-                textAlign: 'right'
-            });
-            
-            this.ctx.fillText(player.killStreak.toString(), 
-                             x + CONFIG.ui.leaderboard.width - CONFIG.ui.leaderboard.inner_padding, 
-                             rowY);
-        });
-        
-        this.restoreCanvasState();
-        this.performanceStats.drawCalls++;
-    }
-    
-    // Draw death screen
-    drawDeathScreen(myTank) {
-        // Implementation using existing code from game.js
-        const dpr = window.devicePixelRatio || 1;
-        const logicalWidth = this.canvas.width / dpr;
-        const logicalHeight = this.canvas.height / dpr;
-        
-        // Draw background overlay
-        this.setBatchState({
-            fillStyle: PALETTE.base,
-            globalAlpha: CONFIG.ui.death_screen.background_alpha
-        });
-        
-        this.ctx.fillRect(0, 0, logicalWidth, logicalHeight);
-        
-        const centerX = logicalWidth / 2;
-        const centerY = logicalHeight / 2;
-        
-        // Draw death message
-        this.setBatchState({
-            fillStyle: PALETTE.errorAccent,
-            font: `${CONFIG.ui.death_screen.message_font_size}px ${CONFIG.typography.primary_font}`,
-            textAlign: 'center',
-            textBaseline: 'middle',
-            shadowBlur: 15,
-            shadowColor: PALETTE.errorAccent,
-            globalAlpha: 1
-        });
-        
-        this.ctx.fillText('YOU DIED', centerX, centerY - 80);
-        
-        this.performanceStats.drawCalls++;
-    }
-    
-    // Draw frosted glass panel with proper state isolation
-    drawFrostedGlassPanel(x, y, width, height) {
-        this.saveCanvasState();
-        
-        const unifiedCyan = CONFIG.colors.leaderboard_cyan;
-        
-        // Base frosted glass layer
-        this.setBatchState({
-            fillStyle: unifiedCyan,
-            globalAlpha: CONFIG.ui.leaderboard.frosted_glass_alpha
-        });
-        this.ctx.fillRect(x, y, width, height);
-        
-        // Darker layer for depth
-        this.setBatchState({
-            fillStyle: PALETTE.base,
-            globalAlpha: 0.4
-        });
-        this.ctx.fillRect(x, y, width, height);
-        
-        // Cyan tint layer
-        this.setBatchState({
-            fillStyle: unifiedCyan,
-            globalAlpha: 0.1
-        });
-        this.ctx.fillRect(x, y, width, height);
-        
-        // Border
-        this.setBatchState({
-            strokeStyle: unifiedCyan,
-            lineWidth: 1,
-            globalAlpha: 0.8
-        });
-        this.ctx.strokeRect(x, y, width, height);
-        
-        this.restoreCanvasState();
-        this.performanceStats.drawCalls++;
-    }
+    // UI rendering methods removed - now handled by UIManager
+    // These methods have been moved to UIManager for centralized UI handling
     
     // Render global effects
     renderGlobalEffects() {

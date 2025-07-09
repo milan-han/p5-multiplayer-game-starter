@@ -25,7 +25,7 @@ let myPlayerId = null;
 let camera;
 let clientArena;
 let backgroundPattern;
-let loginOverlay;
+let uiManager;
 
 // Phase 10: Animation System Components
 let deltaTime;
@@ -33,11 +33,6 @@ let interpolationBuffer;
 let networkManager;
 let animationManager;
 let entityEvents = new Map(); // Store events for animation state machines
-let playerDeathState = {
-    isDead: false,
-    respawnTime: 0,
-    deathTime: 0
-};
 
 let combatEffects = {
     muzzleFlashes: [],
@@ -62,6 +57,39 @@ const normalizeAngle = (angle) => {
     while (angle < -Math.PI) angle += Math.PI * 2;
     while (angle > Math.PI) angle -= Math.PI * 2;
     return angle;
+};
+
+// =================================================================================
+// DPI UTILITY FUNCTIONS - Centralized DPI handling for consistency
+// =================================================================================
+
+const DPR = {
+    // Get current device pixel ratio
+    get: () => window.devicePixelRatio || 1,
+    
+    // Convert CSS pixels to canvas buffer pixels
+    cssToCanvas: (cssPixels) => cssPixels * DPR.get(),
+    
+    // Convert canvas buffer pixels to CSS pixels
+    canvasToCSS: (canvasPixels) => canvasPixels / DPR.get(),
+    
+    // Get logical canvas dimensions (CSS pixels)
+    logicalWidth: () => canvas ? canvas.width / DPR.get() : 0,
+    logicalHeight: () => canvas ? canvas.height / DPR.get() : 0,
+    
+    // Get logical canvas center (CSS pixels)
+    logicalCenter: () => ({
+        x: DPR.logicalWidth() / 2,
+        y: DPR.logicalHeight() / 2
+    }),
+    
+    // Get logical canvas bounds (CSS pixels)
+    logicalBounds: () => ({
+        width: DPR.logicalWidth(),
+        height: DPR.logicalHeight(),
+        centerX: DPR.logicalWidth() / 2,
+        centerY: DPR.logicalHeight() / 2
+    })
 };
 
 // Background pattern creation
@@ -136,8 +164,8 @@ function init() {
         // Initialize animation manager for centralized rendering
         animationManager = new AnimationManager(canvas, ctx, deltaTime);
         
-        // Create login overlay
-        loginOverlay = new LoginOverlay(canvas, ctx, CONFIG, socket);
+        // Create centralized UI manager
+        uiManager = new UIManager(canvas, ctx, CONFIG, socket);
         
         // Setup input handling
         setupInputHandlers();
@@ -155,13 +183,13 @@ function init() {
 
 // Canvas resizing
 function resizeCanvas() {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = DPR.get();
     // Set canvas CSS size
     canvas.style.width = window.innerWidth + 'px';
     canvas.style.height = window.innerHeight + 'px';
     // Set actual pixel buffer to match DPR
-    canvas.width = Math.floor(window.innerWidth * dpr);
-    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.width = Math.floor(DPR.cssToCanvas(window.innerWidth));
+    canvas.height = Math.floor(DPR.cssToCanvas(window.innerHeight));
     // Reset any prior transforms then apply DPR scaling so 1 unit == 1 CSS pixel
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
@@ -170,6 +198,11 @@ function resizeCanvas() {
     // Phase 10: Update animation manager on resize
     if (animationManager) {
         animationManager.onResize();
+    }
+    
+    // Update UI manager on resize
+    if (uiManager) {
+        uiManager.onResize();
     }
 }
 
@@ -187,7 +220,8 @@ function setupSocketEvents() {
     socket.on('playerJoined', (data) => {
         if (data.playerId === myPlayerId) {
             console.log('Successfully joined game with name:', data.name);
-            // Player successfully joined, login overlay will be hidden by LoginOverlay class
+            // Player successfully joined, transition to game UI
+            uiManager.showGame();
         }
     });
     
@@ -196,17 +230,18 @@ function setupSocketEvents() {
         
         // Phase 10: Add state to interpolation buffer
         interpolationBuffer.addSnapshot(state);
-        
-        // updateUI(); // Disabled - using Canvas UI instead of DOM UI
     });
     
     socket.on('playerKilled', (data) => {
         if (data.victim === myPlayerId) {
             // Handle death effects
             camera.addShake(CONFIG.visual.combat_effects.death_shake_magnitude);
-            playerDeathState.isDead = true;
-            playerDeathState.deathTime = Date.now();
-            playerDeathState.respawnTime = Date.now() + CONFIG.combat.respawn_delay_ms;
+            
+            // Show death screen with UI manager
+            uiManager.showDeath({
+                deathTime: Date.now(),
+                respawnTime: Date.now() + CONFIG.combat.respawn_delay_ms
+            });
         }
         
         // Phase 10: Add event for animation state machine
@@ -222,9 +257,9 @@ function setupSocketEvents() {
         if (data.playerId === myPlayerId) {
             // Handle respawn effects
             camera.addShake(CONFIG.camera.shake_magnitude);
-            playerDeathState.isDead = false;
-            playerDeathState.respawnTime = 0;
-            playerDeathState.deathTime = 0;
+            
+            // Hide death screen and show game UI
+            uiManager.showGame();
         }
         
         // Phase 10: Add event for animation state machine
@@ -359,14 +394,6 @@ function handleSpeedMode() {
     }
 }
 
-// Update UI elements
-function updateUI() {
-    const myTank = gameState.tanks.find(tank => tank.id === myPlayerId);
-    if (myTank) {
-        document.getElementById('killstreak').textContent = `Kill Streak: ${myTank.killStreak}`;
-        document.getElementById('ammo').textContent = `Ammo: ${myTank.ammo}`;
-    }
-}
 
 // Phase 10: Animation system helper functions
 function addEntityEvent(entityId, event) {
@@ -384,324 +411,15 @@ function clearEntityEvents() {
     entityEvents.clear();
 }
 
-// Draw Canvas-based UI elements
-function drawUI() {
-    const myTank = gameState.tanks.find(tank => tank.id === myPlayerId);
-    if (!myTank) return;
-    
-    ctx.save();
-    
-    // Draw kill streak display
-    drawKillStreakDisplay(myTank.killStreak);
-    
-    // Draw leaderboard
-    drawLeaderboard();
-    
-    ctx.restore();
-}
-
-// Draw kill streak display with Blueprint aesthetic
-function drawKillStreakDisplay(killStreak) {
-    const dpr = window.devicePixelRatio || 1;
-    const logicalCanvasWidth = canvas.width / dpr;
-    const logicalCanvasHeight = canvas.height / dpr;
-    
-    // Position from bottom-right
-    const logicalRight = CONFIG.ui.killstreak_display.position.right;
-    const logicalBottom = CONFIG.ui.killstreak_display.position.bottom;
-    const width = CONFIG.ui.killstreak_display.width;
-    const height = CONFIG.ui.killstreak_display.height;
-    
-    const x = logicalCanvasWidth - logicalRight - width;
-    const y = logicalCanvasHeight - logicalBottom - height;
-    
-    ctx.save();
-    
-    // Create improved frosted glass effect with multiple layers
-    const unifiedCyan = CONFIG.colors.leaderboard_cyan; // Use same cyan as leaderboard
-    
-    // Base frosted glass layer - more opaque
-    ctx.fillStyle = unifiedCyan;
-    ctx.globalAlpha = CONFIG.ui.killstreak_display.frosted_glass_alpha;
-    ctx.fillRect(x, y, width, height);
-    
-    // Add a darker layer for depth and frosted effect
-    ctx.fillStyle = PALETTE.base;
-    ctx.globalAlpha = 0.4; // Increased opacity for more frosted look
-    ctx.fillRect(x, y, width, height);
-    
-    // Add a subtle cyan tint layer
-    ctx.fillStyle = unifiedCyan;
-    ctx.globalAlpha = 0.1;
-    ctx.fillRect(x, y, width, height);
-    
-    // Add noise/texture simulation with very subtle pattern
-    ctx.fillStyle = PALETTE.white;
-    ctx.globalAlpha = 0.02;
-    ctx.fillRect(x, y, width, height);
-    ctx.globalAlpha = 1;
-    
-    // Draw hair-line cyan outline
-    ctx.strokeStyle = unifiedCyan;
-    ctx.lineWidth = CONFIG.ui.killstreak_display.border_width;
-    ctx.globalAlpha = 0.8;
-    ctx.strokeRect(x, y, width, height);
-    ctx.globalAlpha = 1;
-    
-    // Center content vertically and horizontally within the panel
-    const centerX = x + width / 2;
-    const centerY = y + height / 2;
-    
-    // Draw "KILL STREAK: 5" all on one line
-    const displayText = `KILL STREAK: ${killStreak}`;
-    
-    // Use angular font for consistency
-    ctx.font = `${CONFIG.ui.killstreak_display.label_font_size}px ${CONFIG.typography.title_font}`;
-    ctx.fillStyle = unifiedCyan;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.letterSpacing = '0.08em';
-    
-    // Add reduced glow effect for active kill streaks
-    if (killStreak > 0) {
-        const pulseIntensity = Math.sin(Date.now() * 0.005) * 0.3 + 1;
-        ctx.shadowBlur = CONFIG.ui.killstreak_display.glow_intensity * pulseIntensity;
-        ctx.shadowColor = unifiedCyan;
-        
-        // Add extra glow for high kill streaks
-        if (killStreak >= 5) {
-            ctx.shadowColor = PALETTE.glowAccent;
-            ctx.fillStyle = PALETTE.glowAccent;
-        }
-    }
-    
-    ctx.fillText(displayText, centerX, centerY);
-    
-    // Reset shadow and letter spacing
-    ctx.shadowBlur = 0;
-    ctx.letterSpacing = 'normal';
-    ctx.restore();
-}
-
-// Draw leaderboard with Blueprint aesthetic
-function drawLeaderboard() {
-    if (!gameState.tanks || gameState.tanks.length === 0) return;
-    
-    const dpr = window.devicePixelRatio || 1;
-    const logicalCanvasWidth = canvas.width / dpr;
-    
-    const x = logicalCanvasWidth - CONFIG.ui.leaderboard.position.right - CONFIG.ui.leaderboard.width;
-    const y = CONFIG.ui.leaderboard.position.top;
-    
-    // Sort players by kill streak (highest first)
-    // Show all players, use ID as fallback if no name
-    const sortedPlayers = gameState.tanks
-        .map(tank => ({
-            ...tank,
-            displayName: tank.name || `Player ${tank.id.substring(0, 6)}`
-        }))
-        .sort((a, b) => b.killStreak - a.killStreak)
-        .slice(0, CONFIG.ui.leaderboard.max_players);
-    
-    if (sortedPlayers.length === 0) return;
-    
-    const panelHeight = CONFIG.ui.leaderboard.padding * 2 + 
-                       CONFIG.ui.leaderboard.row_height * (sortedPlayers.length + 1.5);
-    
-    ctx.save();
-    
-    // Create frosted glass effect with multiple layers
-    const unifiedCyan = CONFIG.colors.leaderboard_cyan;
-    
-    // Base frosted glass layer - more opaque
-    ctx.fillStyle = unifiedCyan;
-    ctx.globalAlpha = CONFIG.ui.leaderboard.frosted_glass_alpha;
-    ctx.fillRect(x, y, CONFIG.ui.leaderboard.width, panelHeight);
-    
-    // Add a darker layer for depth and frosted effect
-    ctx.fillStyle = PALETTE.base;
-    ctx.globalAlpha = 0.4; // Increased opacity for more frosted look
-    ctx.fillRect(x, y, CONFIG.ui.leaderboard.width, panelHeight);
-    
-    // Add a subtle cyan tint layer
-    ctx.fillStyle = unifiedCyan;
-    ctx.globalAlpha = 0.1;
-    ctx.fillRect(x, y, CONFIG.ui.leaderboard.width, panelHeight);
-    
-    // Add noise/texture simulation with very subtle pattern
-    ctx.fillStyle = PALETTE.white;
-    ctx.globalAlpha = 0.02;
-    ctx.fillRect(x, y, CONFIG.ui.leaderboard.width, panelHeight);
-    ctx.globalAlpha = 1;
-    
-    // Draw hair-line cyan outline
-    ctx.strokeStyle = unifiedCyan;
-    ctx.lineWidth = CONFIG.ui.leaderboard.border_width;
-    ctx.globalAlpha = 0.8;
-    ctx.strokeRect(x, y, CONFIG.ui.leaderboard.width, panelHeight);
-    ctx.globalAlpha = 1;
-    
-    // Draw header with angular monospaced type
-    ctx.font = `${CONFIG.ui.leaderboard.title_font_weight} ${CONFIG.ui.leaderboard.header_font_size}px ${CONFIG.typography.title_font}`;
-    ctx.fillStyle = unifiedCyan;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.letterSpacing = CONFIG.ui.leaderboard.title_letter_spacing;
-    
-    const headerY = y + CONFIG.ui.leaderboard.padding + CONFIG.ui.leaderboard.row_height / 2;
-    ctx.fillText('LEADERBOARD', x + CONFIG.ui.leaderboard.width / 2, headerY);
-    
-    // Reset letter spacing for player entries
-    ctx.letterSpacing = 'normal';
-    
-    // Draw faint divider line below header
-    const dividerY = headerY + CONFIG.ui.leaderboard.row_height / 2;
-    ctx.strokeStyle = unifiedCyan;
-    ctx.globalAlpha = CONFIG.ui.leaderboard.divider_alpha;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x + CONFIG.ui.leaderboard.inner_padding, dividerY);
-    ctx.lineTo(x + CONFIG.ui.leaderboard.width - CONFIG.ui.leaderboard.inner_padding, dividerY);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    
-    // Draw players with improved typography
-    ctx.font = `${CONFIG.ui.leaderboard.font_size}px ${CONFIG.typography.primary_font}`;
-    ctx.textAlign = 'left';
-    
-    sortedPlayers.forEach((player, index) => {
-        const rowY = y + CONFIG.ui.leaderboard.padding + CONFIG.ui.leaderboard.row_height * (index + 2);
-        const isTopPlayer = index === 0;
-        
-        // Use player's tank color for their name
-        const playerColor = `rgb(${player.rgb.r}, ${player.rgb.g}, ${player.rgb.b})`;
-        ctx.fillStyle = playerColor;
-        ctx.shadowColor = playerColor;
-        
-        // Special styling for top player with additive pulse
-        if (isTopPlayer) {
-            const pulseIntensity = Math.sin(Date.now() * CONFIG.ui.leaderboard.pulse_speed) * 0.3 + 1;
-            ctx.shadowBlur = CONFIG.ui.leaderboard.top_player_glow_intensity * pulseIntensity;
-        } else {
-            // Regular players with reduced alpha
-            ctx.globalAlpha = CONFIG.ui.leaderboard.regular_player_alpha;
-            ctx.shadowBlur = 0;
-        }
-        
-        // Highlight current player with extra glow
-        if (player.id === myPlayerId) {
-            ctx.shadowBlur = 8;
-            ctx.globalAlpha = 1; // Full opacity for current player
-        }
-        
-        // Draw player name (truncated if too long)
-        const maxNameWidth = CONFIG.ui.leaderboard.width - 60; // Leave space for score
-        let displayName = player.displayName.toUpperCase(); // Convert to uppercase for consistency
-        while (ctx.measureText(displayName).width > maxNameWidth && displayName.length > 0) {
-            displayName = displayName.slice(0, -1);
-        }
-        ctx.fillText(displayName, x + CONFIG.ui.leaderboard.inner_padding, rowY);
-        
-        // Draw kill streak with monospace font for numbers
-        ctx.font = `${CONFIG.ui.leaderboard.font_size}px ${CONFIG.typography.monospace_font}`;
-        ctx.textAlign = 'right';
-        ctx.fillText(player.killStreak.toString(), 
-                     x + CONFIG.ui.leaderboard.width - CONFIG.ui.leaderboard.inner_padding, 
-                     rowY);
-        
-        // Reset font for next iteration
-        ctx.font = `${CONFIG.ui.leaderboard.font_size}px ${CONFIG.typography.primary_font}`;
-        ctx.textAlign = 'left';
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = 1;
-    });
-    
-    ctx.restore();
-}
-
-// Draw death screen with respawn countdown
-function drawDeathScreen() {
-    if (!playerDeathState.isDead) return;
-    
-    const now = Date.now();
-    const remainingTime = Math.max(0, playerDeathState.respawnTime - now);
-    const secondsLeft = Math.ceil(remainingTime / 1000);
-    
-    // Draw background overlay
-    ctx.fillStyle = PALETTE.base;
-    ctx.globalAlpha = CONFIG.ui.death_screen.background_alpha;
-    
-    // Use logical dimensions (accounting for DPR)
-    const dpr = window.devicePixelRatio || 1;
-    const logicalWidth = canvas.width / dpr;
-    const logicalHeight = canvas.height / dpr;
-    
-    ctx.fillRect(0, 0, logicalWidth, logicalHeight);
-    ctx.globalAlpha = 1;
-    
-    const centerX = logicalWidth / 2;
-    const centerY = logicalHeight / 2;
-    
-    // Draw death message
-    ctx.font = `${CONFIG.ui.death_screen.message_font_size}px ${CONFIG.typography.primary_font}`;
-    ctx.fillStyle = PALETTE.errorAccent;
-    ctx.shadowColor = PALETTE.errorAccent;
-    ctx.shadowBlur = 15;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('YOU DIED', centerX, centerY - 80);
-    ctx.shadowBlur = 0;
-    
-    // Draw countdown timer
-    if (secondsLeft > 0) {
-        ctx.font = `${CONFIG.ui.death_screen.countdown_font_size}px ${CONFIG.typography.primary_font}`;
-        ctx.fillStyle = PALETTE.primaryStroke;
-        ctx.shadowColor = PALETTE.primaryStroke;
-        ctx.shadowBlur = CONFIG.ui.death_screen.glow_intensity;
-        
-        // Add pulsing effect
-        const pulse = Math.sin(now * CONFIG.ui.death_screen.pulse_speed) * 0.2 + 1;
-        ctx.shadowBlur = CONFIG.ui.death_screen.glow_intensity * pulse;
-        
-        ctx.fillText(secondsLeft.toString(), centerX, centerY);
-        ctx.shadowBlur = 0;
-        
-        // Draw "Respawning in" text
-        ctx.font = `${CONFIG.ui.death_screen.message_font_size - 4}px ${CONFIG.typography.primary_font}`;
-        ctx.fillStyle = PALETTE.dimStroke;
-        ctx.fillText('Respawning in', centerX, centerY - 40);
-    } else {
-        // Draw "Respawning..." text
-        ctx.font = `${CONFIG.ui.death_screen.message_font_size}px ${CONFIG.typography.primary_font}`;
-        ctx.fillStyle = PALETTE.glowAccent;
-        ctx.shadowColor = PALETTE.glowAccent;
-        ctx.shadowBlur = 10;
-        ctx.fillText('Respawning...', centerX, centerY);
-        ctx.shadowBlur = 0;
-    }
-    
-    // Draw respawn button (optional - for instant respawn if implemented)
-    if (secondsLeft <= 0) {
-        const buttonX = centerX - CONFIG.ui.death_screen.button_width / 2;
-        const buttonY = centerY + CONFIG.ui.death_screen.element_spacing - CONFIG.ui.death_screen.button_height / 2;
-        
-        ctx.strokeStyle = PALETTE.primaryStroke;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(buttonX, buttonY, CONFIG.ui.death_screen.button_width, CONFIG.ui.death_screen.button_height);
-        
-        ctx.font = `${CONFIG.ui.death_screen.message_font_size - 4}px ${CONFIG.typography.primary_font}`;
-        ctx.fillStyle = PALETTE.primaryStroke;
-        ctx.fillText('RESPAWN', centerX, centerY + CONFIG.ui.death_screen.element_spacing);
-    }
-}
+// Legacy UI functions removed - now handled by UIManager
 
 // Main game loop - Phase 10: Complete rewrite with animation system
 function gameLoop() {
     // Phase 10: Update delta time for frame-rate independence
     const dt = deltaTime.update();
     
-    // Check if login overlay is visible
-    if (loginOverlay && loginOverlay.isVisible) {
+    // Check if UI manager is handling login/UI state
+    if (uiManager && uiManager.isLoginVisible()) {
         // Clear canvas for login overlay
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
@@ -709,9 +427,8 @@ function gameLoop() {
         ctx.fillStyle = backgroundPattern;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Update and render login overlay
-        loginOverlay.update();
-        loginOverlay.render();
+        // UIManager handles all UI rendering
+        uiManager.render(gameState, myPlayerId);
     } else {
         // Phase 10: Handle continuous input
         handleSpeedMode();
@@ -735,11 +452,9 @@ function gameLoop() {
         
         // Phase 10: Clear entity events after rendering
         clearEntityEvents();
-    }
-    
-    // Phase 10: Draw death screen (on top of everything)
-    if (playerDeathState.isDead) {
-        drawDeathScreen();
+        
+        // UIManager handles all UI rendering (leaderboard, kill streak, death screen)
+        uiManager.render(renderState, myPlayerId);
     }
     
     // Continue game loop

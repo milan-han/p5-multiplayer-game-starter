@@ -34,44 +34,204 @@ function generateCSSVariables() {
  */
 
 :root {
-    /* Colors */
-    --color-base: ${config.colors.base};
-    --color-primary-stroke: ${config.colors.primary_stroke};
-    --color-dim-stroke: ${config.colors.dim_stroke};
-    --color-glow-accent: ${config.colors.glow_accent};
-    --color-error-accent: ${config.colors.error_accent};
-    --color-white: ${config.colors.white};
-    --color-css-background: ${config.colors.css_background};
-    --color-css-text: ${config.colors.css_text};
-    
-    /* Typography */
-    --font-primary: ${config.typography.primary_font};
-    --font-size-ui: ${config.typography.ui_font_size}px;
-    --font-weight-ui: ${config.typography.ui_font_weight};
-    
-    /* UI Layout */
-    --ui-position-top: ${config.ui.hud_position.top}px;
-    --ui-position-left: ${config.ui.hud_position.left}px;
-    
-    /* CSS Override values */
 `;
+
+        // Generate color variables
+        if (config.colors) {
+            cssContent += `    /* Color System */\n`;
+            Object.entries(config.colors).forEach(([key, value]) => {
+                if (typeof value === 'string') {
+                    const cssVarName = `--color-${key.replace(/_/g, '-')}`;
+                    cssContent += `    ${cssVarName}: ${value};\n`;
+                }
+            });
+            cssContent += `\n`;
+        }
+
+        // Generate typography variables
+        if (config.typography) {
+            cssContent += `    /* Typography System */\n`;
+            
+            // Font families
+            if (config.typography.primary_font) {
+                cssContent += `    --font-primary: ${config.typography.primary_font};\n`;
+            }
+            if (config.typography.title_font) {
+                cssContent += `    --font-title: ${config.typography.title_font};\n`;
+            }
+            if (config.typography.monospace_font) {
+                cssContent += `    --font-monospace: ${config.typography.monospace_font};\n`;
+            }
+            
+            // Font sizes
+            if (config.typography.sizes) {
+                Object.entries(config.typography.sizes).forEach(([key, value]) => {
+                    const cssVarName = `--font-size-${key.replace(/_/g, '-')}`;
+                    cssContent += `    ${cssVarName}: ${value}px;\n`;
+                });
+            }
+            
+            // Font weights
+            if (config.typography.weights) {
+                Object.entries(config.typography.weights).forEach(([key, value]) => {
+                    const cssVarName = `--font-weight-${key.replace(/_/g, '-')}`;
+                    cssContent += `    ${cssVarName}: ${value};\n`;
+                });
+            }
+            
+            // Letter spacing
+            if (config.typography.letter_spacing) {
+                Object.entries(config.typography.letter_spacing).forEach(([key, value]) => {
+                    const cssVarName = `--letter-spacing-${key.replace(/_/g, '-')}`;
+                    cssContent += `    ${cssVarName}: ${value};\n`;
+                });
+            }
+            
+            // Line heights
+            if (config.typography.line_heights) {
+                Object.entries(config.typography.line_heights).forEach(([key, value]) => {
+                    const cssVarName = `--line-height-${key.replace(/_/g, '-')}`;
+                    cssContent += `    ${cssVarName}: ${value};\n`;
+                });
+            }
+            
+            cssContent += `\n`;
+        }
+
+        // Generate UI spacing variables
+        if (config.ui) {
+            cssContent += `    /* UI Spacing System */\n`;
+            
+            // Login overlay spacing
+            if (config.ui.login_overlay) {
+                Object.entries(config.ui.login_overlay).forEach(([key, value]) => {
+                    if (typeof value === 'number') {
+                        const cssVarName = `--login-${key.replace(/_/g, '-')}`;
+                        cssContent += `    ${cssVarName}: ${value}px;\n`;
+                    }
+                });
+            }
+            
+            // Leaderboard spacing
+            if (config.ui.leaderboard) {
+                Object.entries(config.ui.leaderboard).forEach(([key, value]) => {
+                    if (typeof value === 'number') {
+                        const cssVarName = `--leaderboard-${key.replace(/_/g, '-')}`;
+                        cssContent += `    ${cssVarName}: ${value}px;\n`;
+                    }
+                });
+            }
+            
+            // Kill streak display spacing
+            if (config.ui.killstreak_display) {
+                Object.entries(config.ui.killstreak_display).forEach(([key, value]) => {
+                    if (typeof value === 'number') {
+                        const cssVarName = `--killstreak-${key.replace(/_/g, '-')}`;
+                        cssContent += `    ${cssVarName}: ${value}px;\n`;
+                    }
+                });
+            }
+            
+            cssContent += `\n`;
+        }
+
+        // Generate animation variables
+        if (config.ui && config.ui.anim) {
+            cssContent += `    /* Animation System */\n`;
+            Object.entries(config.ui.anim).forEach(([key, value]) => {
+                if (typeof value === 'number') {
+                    const cssVarName = `--anim-${key.replace(/_/g, '-')}`;
+                    const unit = key.includes('ms') ? 'ms' : key.includes('fps') ? '' : '';
+                    cssContent += `    ${cssVarName}: ${value}${unit};\n`;
+                }
+            });
+            cssContent += `\n`;
+        }
+
+        // Generate visual effects variables
+        if (config.visual) {
+            cssContent += `    /* Visual Effects */\n`;
+            Object.entries(config.visual).forEach(([key, value]) => {
+                if (typeof value === 'number') {
+                    const cssVarName = `--visual-${key.replace(/_/g, '-')}`;
+                    cssContent += `    ${cssVarName}: ${value};\n`;
+                }
+            });
+            cssContent += `\n`;
+        }
 
         // Add CSS override values if they exist
         if (config.css_overrides) {
+            cssContent += `    /* CSS Override Values */\n`;
             Object.entries(config.css_overrides).forEach(([key, value]) => {
                 if (key !== 'generate_css_vars' && typeof value === 'string') {
                     const cssVarName = `--${key.replace(/_/g, '-')}`;
                     cssContent += `    ${cssVarName}: ${value};\n`;
                 }
             });
+            cssContent += `\n`;
         }
         
         cssContent += `}
+
+/* Typography Style Classes */
 `;
+
+        // Generate typography style classes
+        if (config.typography && config.typography.styles) {
+            Object.entries(config.typography.styles).forEach(([styleName, styleConfig]) => {
+                const className = `.typography-${styleName.replace(/_/g, '-')}`;
+                cssContent += `${className} {\n`;
+                
+                // Map style config to CSS properties
+                if (styleConfig.font) {
+                    const fontVar = `--font-${styleConfig.font.replace(/_font/g, '')}`;
+                    cssContent += `    font-family: var(${fontVar});\n`;
+                }
+                
+                if (styleConfig.size) {
+                    const sizeVar = `--font-size-${styleConfig.size.replace(/_/g, '-')}`;
+                    cssContent += `    font-size: var(${sizeVar});\n`;
+                }
+                
+                if (styleConfig.weight) {
+                    const weightVar = `--font-weight-${styleConfig.weight.replace(/_/g, '-')}`;
+                    cssContent += `    font-weight: var(${weightVar});\n`;
+                }
+                
+                if (styleConfig.letter_spacing) {
+                    const spacingVar = `--letter-spacing-${styleConfig.letter_spacing.replace(/_/g, '-')}`;
+                    cssContent += `    letter-spacing: var(${spacingVar});\n`;
+                }
+                
+                if (styleConfig.line_height) {
+                    const lineHeightVar = `--line-height-${styleConfig.line_height.replace(/_/g, '-')}`;
+                    cssContent += `    line-height: var(${lineHeightVar});\n`;
+                }
+                
+                cssContent += `}\n\n`;
+            });
+        }
+
+        // Generate color utility classes
+        if (config.colors) {
+            cssContent += `/* Color Utility Classes */\n`;
+            Object.entries(config.colors).forEach(([key, value]) => {
+                if (typeof value === 'string') {
+                    const className = `.color-${key.replace(/_/g, '-')}`;
+                    const colorVar = `--color-${key.replace(/_/g, '-')}`;
+                    cssContent += `${className} { color: var(${colorVar}); }\n`;
+                    cssContent += `${className}-bg { background-color: var(${colorVar}); }\n`;
+                }
+            });
+        }
         
         // Write CSS file
         fs.writeFileSync(outputPath, cssContent);
-        console.log(`Generated CSS variables file: ${outputPath}`);
+        console.log(`Generated comprehensive CSS variables file: ${outputPath}`);
+        console.log(`Generated ${Object.keys(config.colors || {}).length} color variables`);
+        console.log(`Generated ${Object.keys(config.typography?.sizes || {}).length} typography size variables`);
+        console.log(`Generated ${Object.keys(config.typography?.styles || {}).length} typography style classes`);
         
     } catch (error) {
         console.error('Error generating CSS variables:', error);

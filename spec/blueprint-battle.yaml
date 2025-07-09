@@ -5,6 +5,41 @@ server:
   port: 8080                  # Server port for HTTP and Socket.IO
   game_loop_interval_ms: 16   # Game loop update interval (60Hz)
 
+# Bot configuration for AI players
+bots:
+  # Spawning and scaling
+  max_bots: 10                    # Maximum simultaneous bots
+  min_bots: 8                    # Minimum bots when humans present
+  spawn_interval_ms: 15000       # Time between bot spawns
+  auto_scale_difficulty: true    # Increase difficulty with player skill
+  
+  # AI behavior tuning
+  ai:
+    vision_range_tiles: 8        # Bot perception range
+    reaction_time_ms: [150, 300] # Min/max reaction delays
+    accuracy_probability: 0.80   # Shot accuracy (0.0-1.0)
+    aim_deviation_degrees: 20    # Maximum aim error
+    
+  # Movement behavior
+  movement:
+    path_replan_interval: 8      # Frames between pathfinding updates
+    stuck_threshold_frames: 40   # Frames to detect stuck condition
+    random_movement_chance: 0.12 # Probability of random movement
+    speed_mode_probability: 0.3  # Chance to use speed mode when fleeing
+    
+  # Combat behavior
+  combat:
+    engagement_range_tiles: 6    # Range to start combat
+    flank_attempt_probability: 0.7 # Chance to flank shielded target
+    retreat_health_threshold: 0   # Currently binary (alive/dead)
+    shield_usage_intelligence: 0.85 # How well bot manages shield
+    
+  # Personality randomization
+  personalities:
+    aggressive: 0.3              # Probability of aggressive bot
+    defensive: 0.3               # Probability of defensive bot
+    balanced: 0.4                # Probability of balanced bot
+
 arena:
   world_size: 8000            # Total side length of the square world, in px
   tile_size: 250              # Size of a single walkable square, in px
@@ -15,7 +50,7 @@ arena:
   ammo_respawn_delay_ms: 15000 # Time before ammo respawns after pickup (15 seconds)
 
 player:
-  move_cooldown_speed_mode: 5   # Frames between auto‐steps while sprinting (Shift held)
+  move_cooldown_speed_mode: 10   # Frames between auto‐steps while sprinting (Shift held)
   move_cooldown_normal_ms: 100  # Minimum milliseconds between normal moves
   shield_alpha_rate: 0.1        # Speed at which shield fades in/out each frame
   heading_interp: 0.15          # Interpolation factor for tank rotation smoothing
@@ -34,9 +69,9 @@ player:
     line_width: 3               # Stroke width of shield arc in px
 
 bullet:
-  initial_speed: 100    # Starting velocity of a fired ball
-  drag: 0.97            # Per-frame drag multiplier applied to speed
-  life_frames: 120      # Lifetime of a bullet before it disappears
+  initial_speed: 150    # Starting velocity of a fired ball
+  drag: 0.79            # Per-frame drag multiplier applied to speed
+  life_frames: 15      # Lifetime of a bullet before it disappears
   radius: 6             # Render radius of a bullet in px
 
 combat:
@@ -141,7 +176,6 @@ ui:
     button_inner_glow_alpha: 0.15      # Subtle inner glow for button panel
     frosted_glass_alpha: 0.12          # Semi-opaque frosted glass background
     frosted_glass_blur: 8              # Blur effect for frosted glass (simulated)
-    unified_cyan: '#26c6da'            # Single cyan value for consistency
     padding_vertical: 20               # Extra vertical padding inside elements
     
   # Leaderboard styling
@@ -155,10 +189,7 @@ ui:
     font_size: 13                  # Font size for player names and scores
     header_font_size: 15           # Font size for leaderboard header
     padding: 15                    # Internal padding (px) - more generous
-    background_alpha: 0.08         # Background transparency - translucent cyan
-    background_color: 'rgba(0, 180, 200, 0.08)'  # Translucent cyan panel
     border_width: 1                # Border width (px)
-    border_color: '#26c6da'        # Cyan outline color
     title_letter_spacing: '0.1em'  # Wide-tracked uppercase for title
     title_font_weight: 'bold'      # Title font weight
     divider_alpha: 0.3             # Faint divider line transparency
@@ -236,12 +267,27 @@ ui:
 
 # Color palette for "Living Blueprint" aesthetic
 colors:
-  # Base colors
-  base: '#000000'           # Background base color
-  primary_stroke: '#9EE7FF' # Primary neon blue stroke
-  dim_stroke: '#3A5F7F'     # Dimmed blue stroke
-  glow_accent: '#00FFF7'    # Cyan glow accent
-  error_accent: '#FF5C5C'   # Red error/player accent
+  # Base colors - Foundation of the design system
+  base: '#000000'           # Background base color (pure black)
+  white: '#FFFFFF'          # Pure white for inner elements and highlights
+  
+  # Primary UI colors - Main interface elements
+  primary: '#9EE7FF'        # Primary neon blue for main UI elements
+  primary_dim: '#3A5F7F'    # Dimmed version of primary for subtle elements
+  
+  # Accent colors - Special highlights and effects
+  accent_cyan: '#00FFF7'    # Cyan glow accent for special effects
+  accent_error: '#FF5C5C'   # Red error/danger accent
+  
+  # UI-specific colors - Consolidated UI element colors
+  ui_cyan: '#26c6da'        # Unified cyan for all UI panels and borders
+  ui_background: 'rgba(38, 198, 218, 0.12)'  # Translucent cyan background for panels
+  ui_border: 'rgba(38, 198, 218, 0.8)'       # Cyan border for UI elements
+  ui_text_dim: 'rgba(38, 198, 218, 0.7)'     # Dimmed cyan for secondary text
+  
+  # Game element colors - Arena and gameplay elements
+  tile_outline: '#FFFFFF'   # Tile outline color
+  arena_grid: '#3A5F7F'     # Arena grid color
   
   # Player color palette - distinct colors for multiplayer
   player_colors:
@@ -256,34 +302,163 @@ colors:
     - '#ADFF2F'  # Green Yellow
     - '#FF1493'  # Deep Pink
   
-  # Additional colors for UI elements
-  white: '#FFFFFF'          # Pure white for inner elements
-  tile_outline: '#FFFFFF'   # Tile outline color
-  
-  # Leaderboard specific colors
-  leaderboard_cyan: '#26c6da'      # Cyan outline and accent color
-  leaderboard_bg: 'rgba(0, 180, 200, 0.08)'  # Translucent cyan background
-  leaderboard_dim_cyan: 'rgba(0, 180, 200, 0.7)'  # Dimmer cyan for regular players
+  # Legacy color aliases (for backward compatibility)
+  primary_stroke: '#9EE7FF' # Alias for primary
+  dim_stroke: '#3A5F7F'     # Alias for primary_dim
+  glow_accent: '#00FFF7'    # Alias for accent_cyan
+  error_accent: '#FF5C5C'   # Alias for accent_error
+  leaderboard_cyan: '#26c6da'  # Alias for ui_cyan
+  leaderboard_bg: 'rgba(38, 198, 218, 0.12)'  # Alias for ui_background
+  leaderboard_dim_cyan: 'rgba(38, 198, 218, 0.7)'  # Alias for ui_text_dim
   
   # CSS-specific colors (will be converted to CSS custom properties)
   css_background: '#000000'  # Body background color
   css_text: '#9EE7FF'       # UI text color
 
-# Typography configuration
+# Typography configuration - "Living Blueprint" design system
 typography:
-  # Font families
-  primary_font: 'Inter'     # Primary font family
-  title_font: 'Menlo, Monaco, "SF Mono", "Courier New", monospace'  # Angular monospace font for title
-  monospace_font: 'Monaco, "Lucida Console", monospace'  # Monospace font for leaderboard
+  # Font families - Consistent across all UI elements
+  primary_font: 'Inter'     # Primary font family for UI text
+  title_font: 'Menlo, Monaco, "SF Mono", "Courier New", monospace'  # Angular monospace font for titles
+  monospace_font: 'Monaco, "Lucida Console", monospace'  # Monospace font for data display
   
-  # Font sizes
-  ui_font_size: 16          # Main UI text size (px)
-  tile_label_size: 12       # Tile coordinate label size (px)
+  # Typography scale - Size hierarchy
+  sizes:
+    # Display - Large titles and headers
+    display_large: 36        # Large display text
+    display_medium: 30       # Medium display text
+    display_small: 24        # Small display text
+    
+    # Headings - Section headers
+    heading_large: 20        # Large headings
+    heading_medium: 16       # Medium headings
+    heading_small: 14        # Small headings
+    
+    # Body text - Regular content
+    body_large: 16           # Large body text
+    body_medium: 14          # Medium body text
+    body_small: 12           # Small body text
+    
+    # Captions and labels
+    caption: 11              # Caption text
+    label: 10                # Label text
   
-  # Font weights
-  ui_font_weight: 600       # UI text weight
+  # Font weights - Consistent weight scale
+  weights:
+    light: 300              # Light weight
+    regular: 400            # Regular weight
+    medium: 500             # Medium weight
+    semibold: 600           # Semibold weight
+    bold: 700               # Bold weight
+    extrabold: 800          # Extra bold weight
   
-  # Error message styling
+  # Letter spacing - Consistent tracking
+  letter_spacing:
+    tight: '-0.02em'        # Tight letter spacing
+    normal: '0em'           # Normal letter spacing
+    wide: '0.05em'          # Wide letter spacing
+    wider: '0.08em'         # Wider letter spacing
+    widest: '0.1em'         # Widest letter spacing
+  
+  # Line heights - Consistent vertical rhythm
+  line_heights:
+    tight: 1.0              # Tight line height
+    normal: 1.2             # Normal line height
+    relaxed: 1.4            # Relaxed line height
+    loose: 1.6              # Loose line height
+  
+  # Typography styles - Predefined combinations
+  styles:
+    # Display styles
+    display_title:
+      font: 'title_font'
+      size: 'display_medium'
+      weight: 'bold'
+      letter_spacing: 'wider'
+      line_height: 'tight'
+    
+    # Heading styles
+    panel_header:
+      font: 'title_font'
+      size: 'heading_medium'
+      weight: 'bold'
+      letter_spacing: 'widest'
+      line_height: 'normal'
+    
+    # Body styles
+    ui_primary:
+      font: 'primary_font'
+      size: 'body_medium'
+      weight: 'semibold'
+      letter_spacing: 'normal'
+      line_height: 'normal'
+    
+    ui_secondary:
+      font: 'primary_font'
+      size: 'body_small'
+      weight: 'regular'
+      letter_spacing: 'normal'
+      line_height: 'normal'
+    
+    # Data display styles
+    data_display:
+      font: 'monospace_font'
+      size: 'body_medium'
+      weight: 'regular'
+      letter_spacing: 'wide'
+      line_height: 'normal'
+    
+    # Interactive element styles
+    button_text:
+      font: 'monospace_font'
+      size: 'body_medium'
+      weight: 'bold'
+      letter_spacing: 'widest'
+      line_height: 'normal'
+    
+    input_text:
+      font: 'monospace_font'
+      size: 'body_medium'
+      weight: 'regular'
+      letter_spacing: 'normal'
+      line_height: 'normal'
+    
+    # Status and feedback styles
+    error_text:
+      font: 'primary_font'
+      size: 'body_small'
+      weight: 'medium'
+      letter_spacing: 'normal'
+      line_height: 'normal'
+    
+    success_text:
+      font: 'primary_font'
+      size: 'body_small'
+      weight: 'medium'
+      letter_spacing: 'normal'
+      line_height: 'normal'
+    
+    # Game-specific styles
+    kill_streak:
+      font: 'title_font'
+      size: 'body_small'
+      weight: 'regular'
+      letter_spacing: 'wider'
+      line_height: 'tight'
+    
+    countdown:
+      font: 'primary_font'
+      size: 'display_large'
+      weight: 'bold'
+      letter_spacing: 'normal'
+      line_height: 'tight'
+  
+  # Legacy aliases (for backward compatibility)
+  ui_font_size: 16          # Alias for body_medium
+  tile_label_size: 12       # Alias for body_small
+  ui_font_weight: 600       # Alias for semibold
+  
+  # Error message styling (legacy)
   error_message_style: 'color: #FF5C5C; font-family: Inter; padding: 20px; text-align: center;'
 
 # Patterns and arrays
@@ -301,8 +476,3 @@ css_overrides:
   
   # Values that need to be available in CSS
   body_background: '#000000'
-  ui_text_color: '#9EE7FF'
-  ui_font_size: '16px'
-  ui_font_weight: '600'
-  ui_top_offset: '20px'
-  ui_left_offset: '20px'
