@@ -37,11 +37,19 @@ This is a Node.js multiplayer game starter built with p5.js, Socket.IO, and Expr
 - **config.js**: Currently empty configuration file
 
 ### Client-Side (`public/`)
-- **index.html**: Main multiplayer game entry point using p5.js
-- **sketch.js**: p5.js game loop connecting to Socket.IO server
+- **index.html**: Main multiplayer game entry point using Canvas API
+- **game.js**: Main game loop with Socket.IO integration
   - Handles player rendering and game state updates
   - Processes `heartbeat` events from server
-- **Player.js**: Client-side player rendering class
+  - Integrates with centralized UI system
+- **Centralized UI System**:
+  - **UIManager.js**: Main UI controller handling all UI states and rendering
+  - **UIState.js**: State machine for login → game → death → respawn flow
+  - **UIComponents.js**: Reusable UI components with consistent styling
+- **Animation & Rendering**:
+  - **AnimationManager.js**: Entity animations and effects (game objects only)
+  - **Camera.js**: Player-following camera with rotation and shake effects
+  - **ClientTank.js**, **ClientBullet.js**, **ClientArena.js**: Game entity rendering
 - **prototype.html**: Single-player prototype showcasing "Blueprint Battle" game mechanics
   - Complete game with tank movement, shooting, grid-based arena
   - Features camera following, collision detection, ammo system
@@ -67,27 +75,66 @@ This is a Node.js multiplayer game starter built with p5.js, Socket.IO, and Expr
 - Uses vanilla JavaScript Canvas API for better performance
 - Full-screen canvas with responsive sizing
 - **"Living Blueprint" aesthetic**: Neon colors, grid patterns, glowing effects
-- **Color Palette**: `#000000` (base), `#9EE7FF` (primary), `#00FFF7` (glow), `#FF5C5C` (player)
+- **DPI-aware rendering**: Consistent scaling across all devices using DPR utility
 
-### Centralized UI System
-- **YAML Configuration**: All visual styling controlled via `spec/blueprint-battle.yaml`
-- **JavaScript CONFIG**: Client-side code uses `CONFIG.section.property` lookups
-- **CSS Custom Properties**: Generated from YAML for CSS styling with `npm run build:css`
-- **No Hard-coded Values**: All colors, fonts, dimensions, and thresholds centralized
-- **Automatic CSS Generation**: Build script creates `public/style-vars.css` from YAML
+### Centralized UI System Architecture
+The UI system is built on three core components that work together:
 
-#### YAML Configuration Sections:
-- `ui`: Positioning, thresholds, dimensions, and UI layout values
-- `colors`: Complete color palette including CSS-specific colors
-- `typography`: Font families, sizes, weights, and text styling
-- `patterns`: Line dash patterns, spacing multipliers, and visual patterns
-- `css_overrides`: Values that need CSS custom properties generation
+#### 1. UIManager (Main Controller)
+- **Purpose**: Central coordinator for all UI rendering and state management
+- **Responsibilities**:
+  - Handles all UI rendering in a single render loop
+  - Manages UI state transitions (login → game → death → respawn)
+  - Coordinates with UIComponents for visual rendering
+  - Manages event handling and user interactions
+- **Usage**: `uiManager.render(gameState, myPlayerId)` in main game loop
 
-#### How to Modify Visual Styling:
-1. Edit values in `spec/blueprint-battle.yaml`
-2. Run `npm run build:css` to regenerate CSS custom properties
-3. Restart server to reload configuration (`npm start`)
-4. All changes automatically applied to both JavaScript and CSS styling
+#### 2. UIState (State Machine)
+- **Purpose**: Manages UI state transitions and user interactions
+- **State Flow**: `login` → `connecting` → `game` → `death` → `game`
+- **Key Methods**:
+  - `transitionTo(newState, data)` - Change UI state
+  - `validateLoginInput()` - Validate user input
+  - `updateInteractiveElements(x, y)` - Handle mouse interactions
+  - `registerInteractiveElement(id, bounds, type, callback)` - Add clickable elements
+
+#### 3. UIComponents (Visual Components)
+- **Purpose**: Reusable UI components with consistent styling
+- **Key Components**:
+  - `drawFrostedGlassPanel()` - Consistent panel backgrounds
+  - `drawText()` - Typography with design system compliance
+  - `drawInputField()` - Interactive input fields
+  - `drawButton()` - Interactive buttons
+  - `drawLeaderboardEntry()` - Player leaderboard entries
+
+### YAML Configuration System
+- **Configuration File**: `spec/blueprint-battle.yaml` (single source of truth)
+- **Build Process**: `npm run build:css` generates CSS variables from YAML
+- **Access Pattern**: `CONFIG.section.property` in JavaScript code
+
+#### Enhanced Configuration Sections:
+- **`colors`**: Unified color system with 22 color variables
+  - Base colors: `base`, `white`, `primary`, `primary_dim`
+  - Accent colors: `accent_cyan`, `accent_error`
+  - UI colors: `ui_cyan`, `ui_background`, `ui_border`, `ui_text_dim`
+- **`typography`**: Complete typography system
+  - Font families: `primary_font`, `title_font`, `monospace_font`
+  - Size scale: `display_large` → `display_medium` → `heading_large` → `body_large` → `caption`
+  - Weights: `light` → `regular` → `medium` → `semibold` → `bold` → `extrabold`
+  - Predefined styles: `display_title`, `panel_header`, `ui_primary`, `button_text`, etc.
+- **`ui`**: UI layout and spacing values
+- **`patterns`**: Line dash patterns and visual effects
+- **`css_overrides`**: Values that need CSS custom properties generation
+
+### UI Development Workflow
+
+#### Adding New UI Elements:
+1. **Design in UIComponents**: Create reusable component methods
+2. **Manage State**: Add state handling to UIState if needed
+3. **Coordinate in UIManager**: Add rendering logic to appropriate render method
+4. **Configure in YAML**: Add any new constants to `spec/blueprint-battle.yaml`
+5. **Build CSS**: Run `npm run build:css` to generate CSS variables
+6. **Test**: Verify visual consistency across all UI states
 
 ### Blueprint Battle Game Features
 - **Tank Class**: Grid-based movement (250px tiles) with smooth interpolation
@@ -101,7 +148,14 @@ This is a Node.js multiplayer game starter built with p5.js, Socket.IO, and Expr
 
 ## File Structure Notes
 
-- `ui/LoginOverlay.js` exists but is empty - likely planned for name entry UI
+### Current UI System Files
+- **`public/UIManager.js`**: Main UI controller (800+ lines)
+- **`public/UIState.js`**: State machine implementation (400+ lines)  
+- **`public/UIComponents.js`**: Reusable UI components (600+ lines)
+- **`public/ui/LoginOverlay.js`**: Legacy file - functionality moved to UIManager
+- **`public/style-vars.css`**: Auto-generated CSS variables (22 colors, 11 typography styles)
+
+### Other Notable Files
 - `config.js` files are empty on both server and client sides
 - `test/` directory exists but contains no test files
 - `docs/` contains project documentation and task planning files
@@ -136,26 +190,84 @@ This is a Node.js multiplayer game starter built with p5.js, Socket.IO, and Expr
 
 ## UI System Maintenance Guidelines
 
-### Adding New Visual Constants
-1. **Add to YAML**: Define new values in appropriate section of `spec/blueprint-battle.yaml`
-2. **Update Build Script**: If CSS access needed, add to `css_overrides` section
-3. **Use in Code**: Reference via `CONFIG.section.property` in JavaScript
-4. **Regenerate CSS**: Run `npm run build:css` if CSS variables needed
+### Working with the New UI System
 
-### Modifying Existing Styling
-1. **Edit YAML Only**: Never modify hard-coded values in JavaScript/CSS files
-2. **Consistent Naming**: Use snake_case in YAML, kebab-case in CSS variables
-3. **Test Changes**: Always test visual changes against prototype for consistency
-4. **Document Changes**: Update this file if adding new configuration sections
+#### Initialization (in game.js)
+```javascript
+// Initialize UI system
+uiManager = new UIManager(canvas, ctx, CONFIG, socket);
 
-### Color Palette Management
-- **Primary Colors**: Stored in `colors` section of YAML
-- **Palette Object**: Auto-generated in `game.js` from CONFIG
-- **CSS Colors**: Separate `css_` prefixed colors for CSS-specific styling
-- **Consistency**: Use same color values across JavaScript and CSS
+// In game loop
+uiManager.render(gameState, myPlayerId);
+```
+
+#### Adding New UI Elements
+1. **Create Component Method** in `UIComponents.js`:
+```javascript
+drawCustomPanel(x, y, width, height, data) {
+    this.drawFrostedGlassPanel(x, y, width, height);
+    this.drawText(data.text, x + width/2, y + height/2, {
+        type: 'ui_primary',
+        align: 'center',
+        baseline: 'middle'
+    });
+}
+```
+
+2. **Add State Management** in `UIState.js` (if needed):
+```javascript
+// Register interactive elements
+this.registerInteractiveElement('customButton', bounds, 'button', callback);
+```
+
+3. **Integrate in UIManager** render methods:
+```javascript
+// In renderGameUI() or appropriate render method
+this.uiComponents.drawCustomPanel(x, y, width, height, data);
+```
+
+#### Modifying UI Styling
+1. **Edit YAML Configuration**: All styling in `spec/blueprint-battle.yaml`
+2. **Use Design System**: Reference predefined typography styles and colors
+3. **Build CSS**: Run `npm run build:css` to generate CSS variables
+4. **Test Consistency**: Verify visual consistency across all UI states
+
+### UI State Management
+- **State Flow**: `login` → `connecting` → `game` → `death` → `game`
+- **Transition Method**: `uiManager.uiState.transitionTo(newState, data)`
+- **Current State**: `uiManager.getCurrentState()`
+- **Interactive Elements**: Automatically managed by UIState
+
+### Typography System Usage
+```javascript
+// Use predefined typography styles
+this.drawText('Header Text', x, y, {
+    type: 'panel_header',  // Uses title_font, bold, widest letter-spacing
+    color: CONFIG.colors.ui_cyan
+});
+
+this.drawText('Body Text', x, y, {
+    type: 'ui_primary',    // Uses primary_font, semibold, normal spacing
+    color: CONFIG.colors.primary
+});
+```
+
+### Color System Usage
+- **Unified Colors**: Use `CONFIG.colors.ui_cyan` for all UI elements
+- **Legacy Support**: Old color names still work (`CONFIG.colors.leaderboard_cyan`)
+- **Semantic Colors**: `primary`, `accent_cyan`, `accent_error`, `ui_*`
+- **Consistent Access**: Always use `CONFIG.colors.property` pattern
+
+### Event Handling
+- **Mouse Events**: Automatically handled by UIManager
+- **Keyboard Events**: Managed by UIState for login/death screens
+- **Interactive Elements**: Register with `registerInteractiveElement()`
+- **Cleanup**: Automatic cleanup on state transitions
 
 ### Critical Rules
-- **No Hard-coded Values**: All styling must come from YAML configuration
-- **Visual Parity**: Changes must maintain identical appearance to prototype
+- **No Direct DOM**: All UI is Canvas-based through UIManager
+- **State Machine**: Always use UIState for UI transitions
+- **YAML Configuration**: All styling values come from YAML
+- **Component Reuse**: Use UIComponents methods for consistency
 - **Build Process**: Always run `npm run build:css` after YAML changes
-- **Centralized Source**: YAML is single source of truth for all styling
+- **Visual Parity**: Changes must maintain "Living Blueprint" aesthetic
