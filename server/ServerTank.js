@@ -9,6 +9,9 @@ class ServerTank {
     this.id = id;
     this.arena = arena;
     
+    // Player info
+    this.name = null; // Will be set when player joins with name
+    
     // Grid-based positioning - start at center
     this.gridX = 0;
     this.gridY = 0;
@@ -23,8 +26,8 @@ class ServerTank {
     this.targetY = this.y;
     
     // Tank orientation (matches prototype: -90=North, 0=East, 90=South, 180=West)
-    this.heading = -90;
-    this.targetHeading = -90;
+    this.heading = config.player.initial_heading;
+    this.targetHeading = config.player.initial_heading;
     
     // Combat state
     this.ammo = config.player.initial_ammo;
@@ -204,6 +207,21 @@ class ServerTank {
     this.killStreak++;
   }
 
+  // Set player name
+  setName(name) {
+    this.name = name;
+  }
+
+  // Set player color
+  setColor(hexColor) {
+    // Convert hex color to RGB
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+    
+    this.rgb = { r, g, b };
+  }
+
   // Respawn tank at new position
   respawn() {
     const spawnPos = this.arena.getRandomValidPosition();
@@ -263,11 +281,13 @@ class ServerTank {
   getState() {
     return {
       id: this.id,
+      name: this.name,
       x: this.x,
       y: this.y,
       gridX: this.gridX,
       gridY: this.gridY,
       heading: this.heading,
+      targetHeading: this.targetHeading, // Add targetHeading for client prediction
       ammo: this.ammo,
       shield: this.shield,
       speedMode: this.speedMode,

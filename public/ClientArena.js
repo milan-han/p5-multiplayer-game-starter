@@ -31,28 +31,28 @@ class ClientArena {
     drawGridLines(ctx, bounds, margin) {
         // Use lighter color and lower alpha to match prototype
         ctx.strokeStyle = PALETTE.dimStroke;
-        ctx.globalAlpha = 0.25; // Lower alpha for subtle grid like prototype
+        ctx.globalAlpha = CONFIG.visual.arena_grid_alpha;
         ctx.lineWidth = CONFIG.visual.arena_grid_line_width;
         
-        // Calculate visible grid range
+        // Calculate visible grid range aligned to world coordinates
         const startX = Math.floor((bounds.minX - margin) / this.tileSize) * this.tileSize;
         const endX = Math.ceil((bounds.maxX + margin) / this.tileSize) * this.tileSize;
         const startY = Math.floor((bounds.minY - margin) / this.tileSize) * this.tileSize;
         const endY = Math.ceil((bounds.maxY + margin) / this.tileSize) * this.tileSize;
         
-        // Draw vertical lines
+        // Draw vertical lines that extend beyond visible area to ensure intersection
         for (let x = startX; x <= endX; x += this.tileSize) {
             ctx.beginPath();
-            ctx.moveTo(x, bounds.minY - margin);
-            ctx.lineTo(x, bounds.maxY + margin);
+            ctx.moveTo(x, bounds.minY - margin * 2);
+            ctx.lineTo(x, bounds.maxY + margin * 2);
             ctx.stroke();
         }
         
-        // Draw horizontal lines
+        // Draw horizontal lines that extend beyond visible area to ensure intersection
         for (let y = startY; y <= endY; y += this.tileSize) {
             ctx.beginPath();
-            ctx.moveTo(bounds.minX - margin, y);
-            ctx.lineTo(bounds.maxX + margin, y);
+            ctx.moveTo(bounds.minX - margin * 2, y);
+            ctx.lineTo(bounds.maxX + margin * 2, y);
             ctx.stroke();
         }
         
@@ -93,8 +93,10 @@ class ClientArena {
             const label = this.generateTileLabel(tile.gridX, tile.gridY);
             ctx.fillText(label, x, y + this.halfInnerSize - CONFIG.ui.tile_label_offset);
             
-            // Draw crosshair
+            // Draw crosshair aligned with grid intersections
             ctx.strokeStyle = PALETTE.dimStroke;
+            ctx.lineWidth = CONFIG.visual.arena_grid_line_width;
+            ctx.globalAlpha = CONFIG.visual.arena_grid_alpha;
             ctx.beginPath();
             ctx.moveTo(x - CONFIG.ui.crosshair_size, y);
             ctx.lineTo(x + CONFIG.ui.crosshair_size, y);

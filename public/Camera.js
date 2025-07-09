@@ -3,13 +3,16 @@
 // =================================================================================
 
 class Camera {
-    constructor() {
+    constructor(deltaTime = null) {
         this.x = 0;
         this.y = 0;
         this.rotation = 0;
         this.targetRotation = 0;
         this.shake = 0;
         this.lerpFactor = CONFIG.camera.lerp_factor;
+        
+        // Phase 10: Delta time for frame-rate independence
+        this.deltaTime = deltaTime;
         
         // Look-ahead properties
         this.lookAheadDistance = CONFIG.player.look_ahead.normal;
@@ -50,17 +53,28 @@ class Camera {
             targetY += lookAheadY;
         }
         
-        // Smoothly interpolate camera position
-        this.x = lerp(this.x, targetX, this.lerpFactor);
-        this.y = lerp(this.y, targetY, this.lerpFactor);
+        // Phase 10: Frame-rate independent camera position interpolation
+        if (this.deltaTime) {
+            this.x = this.deltaTime.frameRateIndependentLerp(this.x, targetX, this.lerpFactor);
+            this.y = this.deltaTime.frameRateIndependentLerp(this.y, targetY, this.lerpFactor);
+        } else {
+            // Fallback to regular lerp if deltaTime not available
+            this.x = lerp(this.x, targetX, this.lerpFactor);
+            this.y = lerp(this.y, targetY, this.lerpFactor);
+        }
         
         // Update camera rotation to follow tank
         const tankHeadingRad = myTank.heading * Math.PI / 180;
         this.targetRotation = -tankHeadingRad - Math.PI / 2;
         
-        // Smooth rotation interpolation with angle wrapping
+        // Phase 10: Frame-rate independent rotation interpolation
         let rotationDiff = normalizeAngle(this.targetRotation - this.rotation);
-        this.rotation += rotationDiff * this.lerpFactor;
+        if (this.deltaTime) {
+            this.rotation += rotationDiff * this.deltaTime.frameRateIndependentLerp(0, 1, this.lerpFactor);
+        } else {
+            // Fallback to regular lerp if deltaTime not available
+            this.rotation += rotationDiff * this.lerpFactor;
+        }
         this.rotation = normalizeAngle(this.rotation);
     }
     

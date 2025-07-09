@@ -16,6 +16,12 @@ class GameManager {
     this.bullets = [];
     this.nextBulletId = 1;
     
+    // Track player order for color assignment
+    this.playerOrder = [];
+    
+    // Phase 10: Input sequence tracking for acknowledgment
+    this.playerInputSequences = new Map(); // playerId -> last sequence
+    
     this.gameState = {
       tanks: [],
       bullets: [],
@@ -37,6 +43,11 @@ class GameManager {
       socket.on('disconnect', () => {
         this.removePlayer(socket.id);
         console.log(`Disconnected ${socket.id}`);
+      });
+
+      // Player join event handler
+      socket.on('playerJoin', (data) => {
+        this.handlePlayerJoin(socket.id, data);
       });
 
       // Input event handlers
@@ -63,12 +74,29 @@ class GameManager {
   }
 
   addPlayer(id) {
+    // Assign color from palette based on player order
+    const colorIndex = this.playerOrder.length % config.colors.player_colors.length;
+    const playerColor = config.colors.player_colors[colorIndex];
+    
+    // Track player order
+    this.playerOrder.push(id);
+    
     const tank = new ServerTank(id, this.arena);
+    tank.setColor(playerColor);
     this.tanks.set(id, tank);
     this.broadcastGameState();
   }
 
   removePlayer(id) {
+    // Remove from player order tracking
+    const index = this.playerOrder.indexOf(id);
+    if (index > -1) {
+      this.playerOrder.splice(index, 1);
+    }
+    
+    // Phase 10: Clean up input sequence tracking
+    this.playerInputSequences.delete(id);
+    
     this.tanks.delete(id);
     this.broadcastGameState();
   }
@@ -77,6 +105,9 @@ class GameManager {
     const tank = this.tanks.get(playerId);
     if (!tank) return;
 
+    // Phase 10: Track input sequence for acknowledgment
+    this.updateInputSequence(playerId, data);
+    
     tank.tryMove(data.direction);
   }
 
@@ -84,22 +115,31 @@ class GameManager {
     const tank = this.tanks.get(playerId);
     if (!tank) return;
 
+    // Phase 10: Track input sequence for acknowledgment
+    this.updateInputSequence(playerId, data);
+    
     tank.tryRotate(data.direction);
   }
 
-  handlePlayerShoot(playerId) {
+  handlePlayerShoot(playerId, data = {}) {
     const tank = this.tanks.get(playerId);
     if (!tank) return;
 
+    // Phase 10: Track input sequence for acknowledgment
+    this.updateInputSequence(playerId, data);
+    
     if (tank.tryShoot()) {
       this.createBullet(tank);
     }
   }
 
-  handlePlayerPickupAmmo(playerId) {
+  handlePlayerPickupAmmo(playerId, data = {}) {
     const tank = this.tanks.get(playerId);
     if (!tank) return;
 
+    // Phase 10: Track input sequence for acknowledgment
+    this.updateInputSequence(playerId, data);
+    
     tank.tryPickupAmmo();
   }
 
@@ -107,7 +147,26 @@ class GameManager {
     const tank = this.tanks.get(playerId);
     if (!tank) return;
 
+    // Phase 10: Track input sequence for acknowledgment
+    this.updateInputSequence(playerId, data);
+    
     tank.setSpeedMode(data.enabled);
+  }
+
+  handlePlayerJoin(playerId, data) {
+    const tank = this.tanks.get(playerId);
+    if (!tank) return;
+
+    // Set player name
+    tank.setName(data.name);
+
+    // Emit successful join event
+    this.io.to(playerId).emit('playerJoined', {
+      playerId: playerId,
+      name: data.name
+    });
+
+    console.log(`Player ${playerId} joined with name: ${data.name}`);
   }
 
   createBullet(tank) {
@@ -191,11 +250,21 @@ class GameManager {
     }
   }
 
+  // Phase 10: Track input sequence for acknowledgment
+  updateInputSequence(playerId, data) {
+    if (data.sequence !== undefined) {
+      this.playerInputSequences.set(playerId, data.sequence);
+    }
+  }
+
   broadcastGameState() {
     this.gameState.tanks = Array.from(this.tanks.values()).map(tank => tank.getState());
     this.gameState.bullets = this.bullets.map(bullet => bullet.getState());
     this.gameState.arena = this.arena.getState();
     this.gameState.timestamp = Date.now();
+    
+    // Phase 10: Add input sequence acknowledgment to game state
+    this.gameState.inputSequences = Object.fromEntries(this.playerInputSequences);
     
     this.io.emit('gameState', this.gameState);
   }

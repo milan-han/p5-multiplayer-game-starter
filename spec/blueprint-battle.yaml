@@ -182,8 +182,8 @@ ui:
   # Kill streak display
   killstreak_display:
     position:
-      top: 20                      # Top offset from screen edge (px)
-      left: 20                     # Left offset from screen edge (px)
+      bottom: 20                   # Bottom offset from screen edge (px)
+      right: 20                    # Right offset from screen edge (px)
     width: 180                     # Width of kill streak panel (px)
     height: 55                     # Height of kill streak panel (px)
     font_size: 16                  # Font size for kill streak counter - slightly smaller
@@ -193,6 +193,46 @@ ui:
     frosted_glass_alpha: 0.18      # Semi-opaque frosted glass background - more opaque
     padding: 12                    # Internal padding (px)
     border_width: 1                # Hair-line border width (px)
+    
+  # Animation system configuration
+  anim:
+    # Interpolation and timing
+    interpolation_delay_ms: 33         # Render delay behind server (2 ticks at 60Hz)
+    interpolation_buffer_size: 10      # Number of state snapshots to store
+    delta_time_smoothing: 0.1          # Smoothing factor for delta time calculation
+    
+    # Easing functions and curves
+    ease_out_cubic: 0.25              # Cubic easing factor for smooth transitions
+    ease_in_out_quad: 0.5             # Quadratic easing for UI animations
+    ease_linear: 1.0                  # Linear easing for constant animations
+    
+    # Animation durations (milliseconds)
+    shield_glow_fade_ms: 200          # Shield fade in/out duration
+    muzzle_flash_duration_ms: 83      # Muzzle flash duration (5 frames at 60Hz)
+    hit_flash_duration_ms: 133        # Hit flash duration (8 frames at 60Hz)
+    death_fade_duration_ms: 500       # Death fade duration (30 frames at 60Hz)
+    respawn_flash_duration_ms: 300    # Respawn flash duration
+    
+    # Position and rotation interpolation
+    position_lerp_factor: 0.8         # Position interpolation speed
+    rotation_lerp_factor: 0.15        # Rotation interpolation speed
+    camera_lerp_factor: 0.1           # Camera follow interpolation speed
+    
+    # Visual effect parameters
+    alpha_fade_rate: 0.02             # Alpha fade rate per frame (60Hz)
+    glow_pulse_speed: 0.005           # Glow pulse animation speed
+    shake_decay_rate: 0.9             # Camera shake decay per frame
+    trail_fade_rate: 0.8              # Bullet trail fade rate
+    
+    # State machine timings
+    movement_state_transition_ms: 50  # Movement state transition timing
+    combat_state_transition_ms: 100   # Combat state transition timing
+    effect_state_transition_ms: 16    # Effect state transition timing (1 frame)
+    
+    # Frame rate independence
+    target_fps: 60                    # Target FPS for frame-independent calculations
+    max_delta_time: 0.033             # Maximum delta time (33ms) to prevent large jumps
+    min_delta_time: 0.008             # Minimum delta time (8ms) for very fast systems
 
 # Color palette for "Living Blueprint" aesthetic
 colors:
@@ -202,6 +242,19 @@ colors:
   dim_stroke: '#3A5F7F'     # Dimmed blue stroke
   glow_accent: '#00FFF7'    # Cyan glow accent
   error_accent: '#FF5C5C'   # Red error/player accent
+  
+  # Player color palette - distinct colors for multiplayer
+  player_colors:
+    - '#FF5C5C'  # Red
+    - '#00FFF7'  # Cyan
+    - '#9EE7FF'  # Light Blue
+    - '#FFD700'  # Gold
+    - '#FF69B4'  # Hot Pink
+    - '#00FF00'  # Lime Green
+    - '#FF8C00'  # Orange
+    - '#8A2BE2'  # Blue Violet
+    - '#ADFF2F'  # Green Yellow
+    - '#FF1493'  # Deep Pink
   
   # Additional colors for UI elements
   white: '#FFFFFF'          # Pure white for inner elements

@@ -14,8 +14,11 @@ class ServerBullet {
     this.x = ownerTank.x;
     this.y = ownerTank.y;
     
-    // Calculate velocity based on tank heading (convert degrees to radians)
-    const headingRad = ownerTank.heading * Math.PI / 180;
+    // Quantize heading to nearest cardinal direction (0°, 90°, 180°, 270°)
+    const quantizedHeading = this.quantizeHeading(ownerTank.heading);
+    
+    // Calculate velocity based on quantized heading (convert degrees to radians)
+    const headingRad = quantizedHeading * Math.PI / 180;
     const speed = config.bullet.initial_speed;
     this.vx = Math.cos(headingRad) * speed;
     this.vy = Math.sin(headingRad) * speed;
@@ -29,6 +32,32 @@ class ServerBullet {
     // Track reflections to prevent infinite bouncing
     this.reflectionCount = 0;
     this.maxReflections = config.combat.max_reflections;
+  }
+
+  // Quantize heading to nearest cardinal direction
+  quantizeHeading(heading) {
+    // Normalize heading to 0-360 range
+    const normalizedHeading = ((heading % 360) + 360) % 360;
+    
+    // Round to nearest cardinal direction (0°, 90°, 180°, 270°)
+    const cardinalDirections = [0, 90, 180, 270];
+    let closestDirection = cardinalDirections[0];
+    let minDistance = Math.abs(normalizedHeading - closestDirection);
+    
+    for (const direction of cardinalDirections) {
+      const distance = Math.min(
+        Math.abs(normalizedHeading - direction),
+        Math.abs(normalizedHeading - direction - 360),
+        Math.abs(normalizedHeading - direction + 360)
+      );
+      
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestDirection = direction;
+      }
+    }
+    
+    return closestDirection;
   }
 
   // Update bullet position and physics

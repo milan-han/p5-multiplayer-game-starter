@@ -7,18 +7,6 @@ Task Formula:
 
 ## ⏭️ Next Up
 
-### Problem fixes:
-
-Fix:Leadeboard should display the actual user inputed names properly, rather it displays names like "Player 3R..."
-Fix: We recently introduced a high DPI fix, but in the process, all content got centered at bottom right, We have since made individual small fixes to recenter. We need a global way to recenter eveyrthing, becayse some got left out, like the respawn screen is stuck in bottom right still. 
-Fix:Blue print grid should intersect tiles and crosshairs.
-Fix: The kill streak is in top left, I want in in bottom right.
-Fix: Make users load in as different colours, instead of just red vs other.
-
-Impliment: The player's names displayed on scoreboard 
-Place 
-- Problem: Bullets fly at angle if I shoot just after initializing a turn and just before fully rotating. I instead would like Bullets to shoot at either 4 of the locked directions that the cube can move in.
-
 
 
 
@@ -64,6 +52,11 @@ Give each bot a unique colour/name.
 Maintain a per-bot “awareness” radius to simulate limited vision.
 With these additions you can instantly fill empty lobbies or offer an offline practice mode while preserving the competitive mechanics defined in CLAUDE.md and BlueprintBattleRules.md.
 
+
+
+
+
+## ✅ Done (newest on top)
 
 
 ### Phase 10, Animation:
@@ -142,10 +135,12 @@ Blueprint Battle.
 
 
 
+Fix:Leadeboard should display the actual user inputed names properly, rather it displays names like "Player 3R..."
+Fix: We recently introduced a high DPI fix, but in the process, all content got centered at bottom right, We have since made individual small fixes to recenter. We need a global way to recenter eveyrthing, becayse some got left out, like the respawn screen is stuck in bottom right still. 
+Fix:Blue print grid should intersect tiles and crosshairs.
+Fix: The kill streak is in top left, I want in in bottom right.
+Fix: Make users load in as different colours, instead of just red vs other.
 
-## ✅ Done (newest on top)
-
-### Phase 7: UI and Polish - COMPLETE ✅
 
 ### Phase 7: UI and Polish - COMPLETE ✅
 Style: Neon-Blueprint, Laser, Glow, Tron,

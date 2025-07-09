@@ -168,20 +168,18 @@ class ClientTank {
         
         ctx.save();
         
-        // Set tank color (red for self, player's RGB for others)
-        if (isMyTank) {
-            ctx.strokeStyle = PALETTE.errorAccent;
-            ctx.shadowColor = PALETTE.errorAccent;
-        } else {
-            // Use tank's RGB color
-            const rgb = this.data.rgb;
-            const color = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
-            ctx.strokeStyle = color;
-            ctx.shadowColor = color;
-        }
+        // Use tank's assigned color from server
+        const rgb = this.data.rgb;
+        const color = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        ctx.strokeStyle = color;
+        ctx.shadowColor = color;
         
-        // Add glow effect
-        ctx.shadowBlur = CONFIG.visual.tank_shadow_blur;
+        // Add glow effect - extra brightness for own tank
+        if (isMyTank) {
+            ctx.shadowBlur = CONFIG.visual.tank_shadow_blur * 1.5;
+        } else {
+            ctx.shadowBlur = CONFIG.visual.tank_shadow_blur;
+        }
         ctx.lineWidth = CONFIG.visual.tank_line_width;
         
         // Draw tank square

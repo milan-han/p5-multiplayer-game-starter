@@ -26,6 +26,13 @@ let camera;
 let clientArena;
 let backgroundPattern;
 let loginOverlay;
+
+// Phase 10: Animation System Components
+let deltaTime;
+let interpolationBuffer;
+let networkManager;
+let animationManager;
+let entityEvents = new Map(); // Store events for animation state machines
 let playerDeathState = {
     isDead: false,
     respawnTime: 0,
@@ -110,14 +117,24 @@ function init() {
         // Set canvas size
         resizeCanvas();
         
+        // Initialize Phase 10 animation system
+        deltaTime = new DeltaTime();
+        interpolationBuffer = new InterpolationBuffer(deltaTime);
+        
         // Initialize game objects
-        camera = new Camera();
+        camera = new Camera(deltaTime);
         clientArena = new ClientArena();
         backgroundPattern = createBackgroundPattern();
         
         // Create socket connection (but don't join game yet)
         socket = io();
         setupSocketEvents();
+        
+        // Initialize network manager with enhanced prediction
+        networkManager = new NetworkManager(socket, deltaTime);
+        
+        // Initialize animation manager for centralized rendering
+        animationManager = new AnimationManager(canvas, ctx, deltaTime);
         
         // Create login overlay
         loginOverlay = new LoginOverlay(canvas, ctx, CONFIG, socket);
@@ -149,6 +166,11 @@ function resizeCanvas() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
     backgroundPattern = createBackgroundPattern();
+    
+    // Phase 10: Update animation manager on resize
+    if (animationManager) {
+        animationManager.onResize();
+    }
 }
 
 // Socket.IO event handlers
@@ -171,6 +193,10 @@ function setupSocketEvents() {
     
     socket.on('gameState', (state) => {
         gameState = state;
+        
+        // Phase 10: Add state to interpolation buffer
+        interpolationBuffer.addSnapshot(state);
+        
         // updateUI(); // Disabled - using Canvas UI instead of DOM UI
     });
     
@@ -183,11 +209,13 @@ function setupSocketEvents() {
             playerDeathState.respawnTime = Date.now() + CONFIG.combat.respawn_delay_ms;
         }
         
-        // Add death fade effect at victim's position
-        const victimTank = gameState.tanks.find(tank => tank.id === data.victim);
-        if (victimTank) {
-            addDeathFade(victimTank.x, victimTank.y);
-        }
+        // Phase 10: Add event for animation state machine
+        addEntityEvent(data.victim, {
+            type: 'playerKilled',
+            victim: data.victim,
+            killer: data.killer,
+            timestamp: Date.now()
+        });
     });
     
     socket.on('playerRespawned', (data) => {
@@ -198,6 +226,13 @@ function setupSocketEvents() {
             playerDeathState.respawnTime = 0;
             playerDeathState.deathTime = 0;
         }
+        
+        // Phase 10: Add event for animation state machine
+        addEntityEvent(data.playerId, {
+            type: 'playerRespawned',
+            playerId: data.playerId,
+            timestamp: Date.now()
+        });
     });
     
     socket.on('killStreakUpdate', (data) => {
@@ -208,24 +243,33 @@ function setupSocketEvents() {
     });
     
     socket.on('playerShot', (data) => {
-        // Add muzzle flash effect at shooter's position
-        const shooterTank = gameState.tanks.find(tank => tank.id === data.playerId);
-        if (shooterTank) {
-            addMuzzleFlash(shooterTank.x, shooterTank.y);
-            
-            // Add camera shake for player's own shots
-            if (data.playerId === myPlayerId) {
-                camera.addShake(CONFIG.camera.shake_magnitude * CONFIG.camera.shake_multiplier);
-            }
+        // Add camera shake for player's own shots
+        if (data.playerId === myPlayerId) {
+            camera.addShake(CONFIG.camera.shake_magnitude * CONFIG.camera.shake_multiplier);
         }
+        
+        // Phase 10: Add event for animation state machine
+        addEntityEvent(data.playerId, {
+            type: 'playerShot',
+            playerId: data.playerId,
+            timestamp: Date.now()
+        });
     });
     
     socket.on('bulletHit', (data) => {
-        // Add hit flash effect at bullet impact position
-        addHitFlash(data.x, data.y);
-        
         // Add camera shake for hits
         camera.addShake(CONFIG.visual.combat_effects.impact_shake_magnitude);
+        
+        // Phase 10: Add event for animation state machine
+        if (data.targetId) {
+            addEntityEvent(data.targetId, {
+                type: 'bulletHit',
+                targetId: data.targetId,
+                x: data.x,
+                y: data.y,
+                timestamp: Date.now()
+            });
+        }
     });
 }
 
@@ -242,28 +286,34 @@ function setupInputHandlers() {
         switch (key) {
             case 'w':
                 if (!keys.shift) {
-                    socket.emit('playerMove', { direction: 'forward' });
+                    // Phase 10: Use network manager for enhanced prediction
+                    networkManager.sendInput('playerMove', { direction: 'forward' });
                 }
                 break;
             case 's':
                 if (!keys.shift) {
-                    socket.emit('playerMove', { direction: 'backward' });
+                    // Phase 10: Use network manager for enhanced prediction
+                    networkManager.sendInput('playerMove', { direction: 'backward' });
                 }
                 break;
             case 'a':
-                socket.emit('playerRotate', { direction: 'left' });
+                // Phase 10: Use network manager for enhanced prediction
+                networkManager.sendInput('playerRotate', { direction: 'left' });
                 break;
             case 'd':
-                socket.emit('playerRotate', { direction: 'right' });
+                // Phase 10: Use network manager for enhanced prediction
+                networkManager.sendInput('playerRotate', { direction: 'right' });
                 break;
             case ' ':
                 e.preventDefault();
-                socket.emit('playerShoot');
-                socket.emit('playerPickupAmmo');
+                // Phase 10: Use network manager for enhanced prediction
+                networkManager.sendInput('playerShoot', {});
+                networkManager.sendInput('playerPickupAmmo', {});
                 camera.addShake(CONFIG.camera.shake_magnitude * CONFIG.camera.shake_multiplier);
                 break;
             case 'shift':
-                socket.emit('speedModeToggle', { enabled: true });
+                // Phase 10: Use network manager for enhanced prediction
+                networkManager.sendInput('speedModeToggle', { enabled: true });
                 break;
         }
     });
@@ -275,7 +325,8 @@ function setupInputHandlers() {
         }
 
         if (key === 'shift') {
-            socket.emit('speedModeToggle', { enabled: false });
+            // Phase 10: Use network manager for enhanced prediction
+            networkManager.sendInput('speedModeToggle', { enabled: false });
         }
     });
     
@@ -292,10 +343,12 @@ function handleSpeedMode() {
         if (now - lastSpeedModeMove >= speedModeDelay) {
             let moved = false;
             if (keys.w) {
-                socket.emit('playerMove', { direction: 'forward' });
+                // Phase 10: Use network manager for enhanced prediction
+                networkManager.sendInput('playerMove', { direction: 'forward' });
                 moved = true;
             } else if (keys.s) {
-                socket.emit('playerMove', { direction: 'backward' });
+                // Phase 10: Use network manager for enhanced prediction
+                networkManager.sendInput('playerMove', { direction: 'backward' });
                 moved = true;
             }
             
@@ -315,99 +368,20 @@ function updateUI() {
     }
 }
 
-// Combat effects management
-function addMuzzleFlash(x, y) {
-    combatEffects.muzzleFlashes.push({
-        x: x,
-        y: y,
-        duration: CONFIG.visual.combat_effects.muzzle_flash_duration,
-        maxDuration: CONFIG.visual.combat_effects.muzzle_flash_duration
-    });
+// Phase 10: Animation system helper functions
+function addEntityEvent(entityId, event) {
+    if (!entityEvents.has(entityId)) {
+        entityEvents.set(entityId, []);
+    }
+    entityEvents.get(entityId).push(event);
 }
 
-function addHitFlash(x, y) {
-    combatEffects.hitFlashes.push({
-        x: x,
-        y: y,
-        duration: CONFIG.visual.combat_effects.hit_flash_duration,
-        maxDuration: CONFIG.visual.combat_effects.hit_flash_duration
-    });
+function getEntityEvents(entityId) {
+    return entityEvents.get(entityId) || [];
 }
 
-function addDeathFade(x, y) {
-    combatEffects.deathFades.push({
-        x: x,
-        y: y,
-        duration: CONFIG.visual.combat_effects.death_fade_duration,
-        maxDuration: CONFIG.visual.combat_effects.death_fade_duration,
-        alpha: 1.0
-    });
-}
-
-function updateCombatEffects() {
-    // Update muzzle flashes
-    combatEffects.muzzleFlashes = combatEffects.muzzleFlashes.filter(flash => {
-        flash.duration--;
-        return flash.duration > 0;
-    });
-    
-    // Update hit flashes
-    combatEffects.hitFlashes = combatEffects.hitFlashes.filter(flash => {
-        flash.duration--;
-        return flash.duration > 0;
-    });
-    
-    // Update death fades
-    combatEffects.deathFades = combatEffects.deathFades.filter(fade => {
-        fade.duration--;
-        fade.alpha = fade.duration / fade.maxDuration;
-        return fade.duration > 0;
-    });
-}
-
-function drawCombatEffects() {
-    ctx.save();
-    
-    // Draw muzzle flashes
-    combatEffects.muzzleFlashes.forEach(flash => {
-        const alpha = flash.duration / flash.maxDuration;
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = PALETTE.glowAccent;
-        ctx.shadowColor = PALETTE.glowAccent;
-        ctx.shadowBlur = CONFIG.visual.combat_effects.muzzle_flash_intensity;
-        ctx.beginPath();
-        ctx.arc(flash.x, flash.y, 20, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-    });
-    
-    // Draw hit flashes
-    combatEffects.hitFlashes.forEach(flash => {
-        const alpha = flash.duration / flash.maxDuration;
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = PALETTE.errorAccent;
-        ctx.shadowColor = PALETTE.errorAccent;
-        ctx.shadowBlur = 15;
-        ctx.beginPath();
-        ctx.arc(flash.x, flash.y, CONFIG.visual.combat_effects.hit_flash_radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-    });
-    
-    // Draw death fades
-    combatEffects.deathFades.forEach(fade => {
-        ctx.globalAlpha = fade.alpha;
-        ctx.strokeStyle = PALETTE.errorAccent;
-        ctx.shadowColor = PALETTE.errorAccent;
-        ctx.shadowBlur = 10;
-        ctx.lineWidth = 3;
-        const size = 60 * (1 - fade.alpha / fade.maxDuration);
-        ctx.strokeRect(fade.x - size/2, fade.y - size/2, size, size);
-        ctx.shadowBlur = 0;
-    });
-    
-    ctx.globalAlpha = 1;
-    ctx.restore();
+function clearEntityEvents() {
+    entityEvents.clear();
 }
 
 // Draw Canvas-based UI elements
@@ -429,12 +403,17 @@ function drawUI() {
 // Draw kill streak display with Blueprint aesthetic
 function drawKillStreakDisplay(killStreak) {
     const dpr = window.devicePixelRatio || 1;
-    const logicalLeft = CONFIG.ui.killstreak_display.position.left;
-    const logicalTop  = CONFIG.ui.killstreak_display.position.top;
-    const x = logicalLeft;
-    const y = logicalTop;
+    const logicalCanvasWidth = canvas.width / dpr;
+    const logicalCanvasHeight = canvas.height / dpr;
+    
+    // Position from bottom-right
+    const logicalRight = CONFIG.ui.killstreak_display.position.right;
+    const logicalBottom = CONFIG.ui.killstreak_display.position.bottom;
     const width = CONFIG.ui.killstreak_display.width;
     const height = CONFIG.ui.killstreak_display.height;
+    
+    const x = logicalCanvasWidth - logicalRight - width;
+    const y = logicalCanvasHeight - logicalBottom - height;
     
     ctx.save();
     
@@ -594,24 +573,25 @@ function drawLeaderboard() {
         const rowY = y + CONFIG.ui.leaderboard.padding + CONFIG.ui.leaderboard.row_height * (index + 2);
         const isTopPlayer = index === 0;
         
+        // Use player's tank color for their name
+        const playerColor = `rgb(${player.rgb.r}, ${player.rgb.g}, ${player.rgb.b})`;
+        ctx.fillStyle = playerColor;
+        ctx.shadowColor = playerColor;
+        
         // Special styling for top player with additive pulse
         if (isTopPlayer) {
             const pulseIntensity = Math.sin(Date.now() * CONFIG.ui.leaderboard.pulse_speed) * 0.3 + 1;
-            ctx.fillStyle = unifiedCyan;
-            ctx.shadowColor = unifiedCyan;
             ctx.shadowBlur = CONFIG.ui.leaderboard.top_player_glow_intensity * pulseIntensity;
         } else {
-            // Cooler, dimmer cyan for other players
-            ctx.fillStyle = unifiedCyan;
+            // Regular players with reduced alpha
             ctx.globalAlpha = CONFIG.ui.leaderboard.regular_player_alpha;
             ctx.shadowBlur = 0;
         }
         
-        // Highlight current player with different glow
+        // Highlight current player with extra glow
         if (player.id === myPlayerId) {
-            ctx.fillStyle = PALETTE.glowAccent;
-            ctx.shadowColor = PALETTE.glowAccent;
             ctx.shadowBlur = 8;
+            ctx.globalAlpha = 1; // Full opacity for current player
         }
         
         // Draw player name (truncated if too long)
@@ -650,11 +630,17 @@ function drawDeathScreen() {
     // Draw background overlay
     ctx.fillStyle = PALETTE.base;
     ctx.globalAlpha = CONFIG.ui.death_screen.background_alpha;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Use logical dimensions (accounting for DPR)
+    const dpr = window.devicePixelRatio || 1;
+    const logicalWidth = canvas.width / dpr;
+    const logicalHeight = canvas.height / dpr;
+    
+    ctx.fillRect(0, 0, logicalWidth, logicalHeight);
     ctx.globalAlpha = 1;
     
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
+    const centerX = logicalWidth / 2;
+    const centerY = logicalHeight / 2;
     
     // Draw death message
     ctx.font = `${CONFIG.ui.death_screen.message_font_size}px ${CONFIG.typography.primary_font}`;
@@ -709,82 +695,52 @@ function drawDeathScreen() {
     }
 }
 
-// Main game loop
+// Main game loop - Phase 10: Complete rewrite with animation system
 function gameLoop() {
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw background pattern
-    ctx.fillStyle = backgroundPattern;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Phase 10: Update delta time for frame-rate independence
+    const dt = deltaTime.update();
     
     // Check if login overlay is visible
     if (loginOverlay && loginOverlay.isVisible) {
+        // Clear canvas for login overlay
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw background pattern
+        ctx.fillStyle = backgroundPattern;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
         // Update and render login overlay
         loginOverlay.update();
         loginOverlay.render();
     } else {
-        // Normal game rendering
-        // Handle continuous input
+        // Phase 10: Handle continuous input
         handleSpeedMode();
         
-        // Update combat effects
-        updateCombatEffects();
+        // Phase 10: Get interpolated game state for smooth rendering
+        const renderState = interpolationBuffer.getInterpolatedState() || gameState;
         
-        // Update camera
-        camera.update(gameState, myPlayerId);
+        // Phase 10: Update camera with interpolated state
+        camera.update(renderState, myPlayerId);
         
-        // Apply camera transformation
-        ctx.save();
-        // Translate to screen center (CSS pixels)
-        const dpr = window.devicePixelRatio || 1;
-        ctx.translate(canvas.width / (2 * dpr), canvas.height / (2 * dpr));
-        
-        // Apply camera shake
+        // Phase 10: Apply frame-rate independent camera shake decay
         if (camera.shake > CONFIG.camera.shake_threshold) {
-            ctx.translate(
-                (Math.random() - 0.5) * camera.shake,
-                (Math.random() - 0.5) * camera.shake
-            );
-            camera.shake *= CONFIG.camera.shake_decay;
+            camera.shake = deltaTime.frameRateIndependentDecay(camera.shake, CONFIG.camera.shake_decay);
         }
         
-        // Apply camera rotation and position
-        ctx.rotate(camera.rotation);
-        // Apply zoom (FOV scaling)
-        ctx.scale(camera.zoom, camera.zoom);
-        // Pixel-snap translation so scaled world units land on whole device pixels (includes DPR)
-        const factor = camera.zoom * dpr;
-        const roundedCamX = Math.round(camera.x * factor) / factor;
-        const roundedCamY = Math.round(camera.y * factor) / factor;
-        ctx.translate(-roundedCamX, -roundedCamY);
+        // Phase 10: Provide entity events to animation manager
+        animationManager.getEntityEvents = getEntityEvents;
         
-        // Draw arena
-        clientArena.draw(ctx, gameState.arena);
+        // Phase 10: Single render call - centralized animation system
+        animationManager.render(renderState, camera, myPlayerId);
         
-        // Draw tanks
-        gameState.tanks.forEach(tankData => {
-            const tank = new ClientTank(tankData);
-            tank.draw(ctx, tankData.id === myPlayerId);
-        });
-        
-        // Draw bullets
-        gameState.bullets.forEach(bulletData => {
-            const bullet = new ClientBullet(bulletData);
-            bullet.draw(ctx);
-        });
-        
-        // Draw combat effects
-        drawCombatEffects();
-        
-        ctx.restore();
-        
-        // Draw Canvas-based UI elements
-        drawUI();
+        // Phase 10: Clear entity events after rendering
+        clearEntityEvents();
     }
     
-    // Draw death screen (on top of everything)
-    drawDeathScreen();
+    // Phase 10: Draw death screen (on top of everything)
+    if (playerDeathState.isDead) {
+        drawDeathScreen();
+    }
     
     // Continue game loop
     requestAnimationFrame(gameLoop);
