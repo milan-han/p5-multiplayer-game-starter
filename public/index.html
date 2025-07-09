@@ -1,16 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.7.3/p5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.7.3/addons/p5.dom.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.7.3/addons/p5.sound.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="password-managers" content="off">
+    <meta name="autofill" content="off">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self';">
+    <title>Blueprint Battle - Multiplayer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
-    <link rel="stylesheet" type="text/css" href="style.css">
-    <meta charset="utf-8" />
-
+    <style>
+        body, html {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            background-color: #000000;
+            margin: 0;
+            padding: 0;
+        }
+        canvas {
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #9EE7FF;
+            font-size: 16px;
+            font-weight: 600;
+            z-index: 1000;
+            pointer-events: none;
+        }
+    </style>
 </head>
-<body>
-<script src="sketch.js"></script>
-<script src="Player.js"></script>
+<body data-no-autofill data-password-managers="off" autocomplete="off">
+    <canvas id="gameCanvas" data-no-autofill="true"></canvas>
+    <div id="ui" data-no-autofill="true">
+        <div id="killstreak" data-no-autofill="true">Kill Streak: 0</div>
+        <div id="ammo" data-no-autofill="true">Ammo: 0</div>
+    </div>
+    <script src="ClientArena.js"></script>
+    <script src="ClientTank.js"></script>
+    <script src="ClientBullet.js"></script>
+    <script src="Camera.js"></script>
+    <script src="game.js"></script>
 </body>
 </html>

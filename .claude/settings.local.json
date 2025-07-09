@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git diff:*)",
+      "Bash(git init:*)",
+      "Bash(git rm:*)",
+      "Bash(git update-index:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(sed:*)",
+      "Bash(./setup.sh:*)",
+      "Bash(npm *:*)",
+      "Bash(npm start)",
+      "Bash(npm run lint)",
+      "Bash(npm test)",
+      "Bash(npm run test:*)",
+      "Bash(pnpm *:*)",
+      "Bash(npx *:*)",
+      "Bash(npx husky:*)",
+      "Bash(vitest:*)",
+      "Bash(playwright:*)",
+      "Bash(eslint:*)",
+      "Bash(npm run dev:*)",
+      "Bash(lsof:*)",
+      "Bash(pkill:*)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [
+      "Bash(dd:*)",
+      "Bash(shred:*)",
+      "Bash(sudo:*)",
+      "WebFetch",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(ssh:*)"
+    ]
+  },
+  "defaultMode": "acceptEdits"
+}

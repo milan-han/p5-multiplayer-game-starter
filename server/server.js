@@ -1,6 +1,7 @@
 const express = require("express");
-
-let Player = require("./Player");
+const GameManager = require("./GameManager");
+const yaml = require('js-yaml');
+const fs = require('fs');
 
 const app = require('express')();
 const server = require('http').createServer(app);
@@ -8,25 +9,32 @@ const io = require('socket.io')(server);
 console.log('The server is now running at http://localhost/');
 app.use(express.static("public"));
 
-let players = [];
+// Load gameplay configuration once at server start
+const config = yaml.load(fs.readFileSync('./spec/blueprint-battle.yaml', 'utf8'));
 
-setInterval(updateGame, 16);
+// Initialize GameManager with Socket.IO instance
+const gameManager = new GameManager(io);
 
-io.on("connection", socket => {
-  console.log(`New connection ${socket.id}`);
-  players.push(new Player(socket.id));
-
-  socket.on("disconnect", () => {
-    socket.disconnect();
-    players = players.filter(player => player.id !== socket.id);
-    console.log(`Disconnected ${socket.id}`);
-  });
+// Expose configuration to clients so they can stay in sync
+app.get('/config', (req, res) => {
+  res.json(config);
 });
 
-function updateGame() {
-  io.emit("heartbeat", players);
-}
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('Shutting down server...');
+  gameManager.shutdown();
+  server.close();
+});
 
-server.listen(80);
+process.on('SIGINT', () => {
+  console.log('Shutting down server...');
+  gameManager.shutdown();
+  server.close();
+});
+
+server.listen(config.server.port, () => {
+  console.log(`Server is running on port ${config.server.port}`);
+});
 
 

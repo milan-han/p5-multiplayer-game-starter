@@ -1,19 +1,30 @@
 # Canonical Blueprint Battle gameplay balance constants
 # All numbers that affect gameplay should live here for easy tuning.
 
+server:
+  port: 8080                  # Server port for HTTP and Socket.IO
+  game_loop_interval_ms: 16   # Game loop update interval (60Hz)
+
 arena:
   world_size: 8000            # Total side length of the square world, in px
   tile_size: 250              # Size of a single walkable square, in px
   tile_ratio: 0.9             # % of a tile that is drawn as the inner neon square
   tile_density: 0.7           # Probability that a tile exists at a grid coord (1 - skip chance)
   ammo_spawn_probability: 0.2 # Chance that a given tile initially spawns a cyan ammo circle
+  minimum_tiles: 50           # Minimum number of tiles required for spawning
+  ammo_respawn_delay_ms: 15000 # Time before ammo respawns after pickup (15 seconds)
 
 player:
   move_cooldown_speed_mode: 5   # Frames between auto‐steps while sprinting (Shift held)
+  move_cooldown_normal_ms: 100  # Minimum milliseconds between normal moves
   shield_alpha_rate: 0.1        # Speed at which shield fades in/out each frame
   heading_interp: 0.15          # Interpolation factor for tank rotation smoothing
-  position_interp: 0.2          # Interpolation factor for tank position smoothing
+  position_interp: 0.8          # Interpolation factor for tank position smoothing
   rotation_step_deg: 90         # Degrees rotated per ArrowLeft/ArrowRight press
+  initial_ammo: 1               # Starting ammo count for new players
+  max_ammo: 1                   # Maximum ammo a player can carry
+  initial_heading: -90          # Starting heading for new players (North)
+  speed_mode_cooldown: 0        # Cooldown frames for speed mode activation
   look_ahead:
     normal: 150                 # Camera look-ahead distance when walking
     speed_mode: 250             # Camera look-ahead distance when sprinting
@@ -28,10 +39,50 @@ bullet:
   life_frames: 120      # Lifetime of a bullet before it disappears
   radius: 6             # Render radius of a bullet in px
 
+combat:
+  shoot_cooldown_ms: 250        # Minimum delay between shots
+  respawn_delay_ms: 3000        # Time before respawn after death (3 seconds)
+  max_reflections: 3            # Maximum bullet reflections off shields
+  tank_hit_radius_divisor: 4    # Tank hit radius = tile_size / this value
+  reflection_randomness: 0.2    # Random angle added to bullet reflections
+  push_distance: 5              # Distance to push bullet away from shield after reflection
+
 camera:
   lerp_factor: 0.1         # Interpolation factor for camera position/rotation
   shake_magnitude: 15      # Initial shake offset applied on shot
   shake_decay: 0.9         # Per-frame decay multiplier for shake magnitude
+  visibility_margin: 100   # Extra margin for visibility culling
+  shake_threshold: 1       # Minimum shake magnitude to apply shake effect
+  shake_multiplier: 2      # Multiplier for shake effect on shooting
+
+visual:
+  # Tank rendering
+  tank_shadow_blur: 15        # Shadow blur radius for tank outline
+  tank_line_width: 2          # Line width for tank outline
+  ammo_indicator_radius: 15   # Radius of ammo indicator dot inside tank
+  
+  # Bullet rendering  
+  bullet_trail_length: 5      # Number of trail segments behind bullet
+  bullet_glow_shadow_blur: 10 # Shadow blur for bullet glow effect
+  bullet_inner_alpha: 0.8     # Alpha for bullet inner circle
+  bullet_inner_radius_ratio: 0.5 # Inner circle radius as ratio of bullet radius
+  bullet_trail_alpha: 0.6     # Alpha for bullet trail segments
+  bullet_fade_threshold: 0.3  # Life ratio below which bullet starts fading
+  bullet_visibility_margin: 4 # Visibility margin multiplier for bullet radius
+  
+  # Arena rendering
+  arena_tile_alpha: 0.25      # Alpha for arena tile outlines
+  arena_tile_line_width: 1    # Line width for arena tiles
+  arena_ammo_alpha: 0.2       # Alpha for ammo spawn indicators
+  arena_ammo_line_width: 1.5  # Line width for ammo spawn circles
+  arena_grid_alpha: 0.25      # Alpha for background grid lines
+  arena_grid_line_width: 1    # Line width for background grid lines
+  arena_label_alpha: 0.25     # Alpha for tile coordinate labels
+  arena_ammo_radius: 12       # Radius of ammo pickup circles
+  arena_ammo_shadow_blur: 8   # Shadow blur for ammo glow effect
+  
+  # Shield rendering
+  shield_shadow_blur: 10      # Shadow blur radius for shield arc
 
 background_pattern:
   cell_size: 20   # Grid cell size (px) of the repeating dot background
