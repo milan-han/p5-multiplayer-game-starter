@@ -5,7 +5,8 @@
   "main": "server/server.js",
   "scripts": {
     "start": "nodemon server/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:css": "node build-css-vars.js"
   },
   "author": "lg",
   "license": "ISC",

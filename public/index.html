@@ -9,12 +9,13 @@
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self';">
     <title>Blueprint Battle - Multiplayer</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style-vars.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
     <style>
         body, html {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-primary), sans-serif;
             overflow: hidden;
-            background-color: #000000;
+            background-color: var(--color-css-background);
             margin: 0;
             padding: 0;
         }
@@ -23,13 +24,14 @@
         }
         #ui {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            color: #9EE7FF;
-            font-size: 16px;
-            font-weight: 600;
+            top: var(--ui-position-top);
+            left: var(--ui-position-left);
+            color: var(--color-css-text);
+            font-size: var(--font-size-ui);
+            font-weight: var(--font-weight-ui);
             z-index: 1000;
             pointer-events: none;
+            display: none; /* Hide DOM UI elements - using Canvas UI instead */
         }
     </style>
 </head>
@@ -43,6 +45,7 @@
     <script src="ClientTank.js"></script>
     <script src="ClientBullet.js"></script>
     <script src="Camera.js"></script>
+    <script src="ui/LoginOverlay.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

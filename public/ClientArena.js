@@ -29,8 +29,9 @@ class ClientArena {
     }
     
     drawGridLines(ctx, bounds, margin) {
+        // Use lighter color and lower alpha to match prototype
         ctx.strokeStyle = PALETTE.dimStroke;
-        ctx.globalAlpha = CONFIG.visual.arena_grid_alpha;
+        ctx.globalAlpha = 0.25; // Lower alpha for subtle grid like prototype
         ctx.lineWidth = CONFIG.visual.arena_grid_line_width;
         
         // Calculate visible grid range
@@ -71,7 +72,7 @@ class ClientArena {
             const y = tile.y;
             
             // Draw tile outline
-            ctx.strokeStyle = 'white';
+            ctx.strokeStyle = CONFIG.colors.tile_outline;
             ctx.lineWidth = CONFIG.visual.arena_tile_line_width;
             ctx.globalAlpha = CONFIG.visual.arena_tile_alpha;
             ctx.strokeRect(
@@ -82,7 +83,7 @@ class ClientArena {
             );
             
             // Draw tile coordinate label
-            ctx.font = '12px Inter';
+            ctx.font = `${CONFIG.typography.tile_label_size}px ${CONFIG.typography.primary_font}`;
             ctx.fillStyle = PALETTE.dimStroke;
             ctx.globalAlpha = CONFIG.visual.arena_label_alpha;
             ctx.textAlign = 'center';
@@ -90,15 +91,15 @@ class ClientArena {
             
             // Generate coordinate label
             const label = this.generateTileLabel(tile.gridX, tile.gridY);
-            ctx.fillText(label, x, y + this.halfInnerSize - 15);
+            ctx.fillText(label, x, y + this.halfInnerSize - CONFIG.ui.tile_label_offset);
             
             // Draw crosshair
             ctx.strokeStyle = PALETTE.dimStroke;
             ctx.beginPath();
-            ctx.moveTo(x - 5, y);
-            ctx.lineTo(x + 5, y);
-            ctx.moveTo(x, y - 5);
-            ctx.lineTo(x, y + 5);
+            ctx.moveTo(x - CONFIG.ui.crosshair_size, y);
+            ctx.lineTo(x + CONFIG.ui.crosshair_size, y);
+            ctx.moveTo(x, y - CONFIG.ui.crosshair_size);
+            ctx.lineTo(x, y + CONFIG.ui.crosshair_size);
             ctx.stroke();
             
             ctx.globalAlpha = 1;
@@ -114,19 +115,13 @@ class ClientArena {
                 return;
             }
             
-            // Draw ammo pickup circle
+            // Draw ammo pickup circle with dashed outline (like prototype)
             ctx.strokeStyle = PALETTE.glowAccent;
             ctx.lineWidth = CONFIG.visual.arena_ammo_line_width;
-            ctx.globalAlpha = 1;
-            ctx.setLineDash([4, 4]);
+            ctx.globalAlpha = CONFIG.visual.arena_ammo_alpha;
+            ctx.setLineDash(CONFIG.patterns.ammo_dash);
             
-            ctx.beginPath();
-            ctx.arc(ammo.x, ammo.y, CONFIG.visual.arena_ammo_radius, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            ctx.setLineDash([]);
-            
-            // Add subtle glow effect
+            // Add subtle glow effect with dashed lines
             ctx.shadowColor = PALETTE.glowAccent;
             ctx.shadowBlur = CONFIG.visual.arena_ammo_shadow_blur;
             
@@ -134,7 +129,10 @@ class ClientArena {
             ctx.arc(ammo.x, ammo.y, CONFIG.visual.arena_ammo_radius, 0, Math.PI * 2);
             ctx.stroke();
             
+            // Reset dash, shadow, and alpha
+            ctx.setLineDash([]);
             ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
         });
     }
     

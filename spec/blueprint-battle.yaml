@@ -54,6 +54,7 @@ camera:
   visibility_margin: 100   # Extra margin for visibility culling
   shake_threshold: 1       # Minimum shake magnitude to apply shake effect
   shake_multiplier: 2      # Multiplier for shake effect on shooting
+  fov_blocks: 12          # Desired number of tiles visible across the screen width (camera zoom)
 
 visual:
   # Tank rendering
@@ -73,9 +74,9 @@ visual:
   # Arena rendering
   arena_tile_alpha: 0.25      # Alpha for arena tile outlines
   arena_tile_line_width: 1    # Line width for arena tiles
-  arena_ammo_alpha: 0.2       # Alpha for ammo spawn indicators
+  arena_ammo_alpha: 0.4       # Alpha for ammo spawn indicators - increased visibility
   arena_ammo_line_width: 1.5  # Line width for ammo spawn circles
-  arena_grid_alpha: 0.25      # Alpha for background grid lines
+  arena_grid_alpha: 0.4       # Alpha for background grid lines - increased to match prototype
   arena_grid_line_width: 1    # Line width for background grid lines
   arena_label_alpha: 0.25     # Alpha for tile coordinate labels
   arena_ammo_radius: 12       # Radius of ammo pickup circles
@@ -83,8 +84,172 @@ visual:
   
   # Shield rendering
   shield_shadow_blur: 10      # Shadow blur radius for shield arc
+  
+  # Combat effects
+  combat_effects:
+    muzzle_flash_duration: 5       # Frames to show muzzle flash effect
+    muzzle_flash_intensity: 25     # Intensity of muzzle flash glow
+    hit_flash_duration: 8          # Frames to show hit impact flash
+    hit_flash_radius: 20           # Radius of hit impact flash (px)
+    death_fade_duration: 30        # Frames for death fade-out effect
+    death_fade_alpha: 0.05         # Alpha reduction per frame during death fade
+    impact_shake_magnitude: 8      # Camera shake intensity for bullet impacts
+    death_shake_magnitude: 20      # Camera shake intensity for player death
 
 background_pattern:
   cell_size: 20   # Grid cell size (px) of the repeating dot background
   dot_radius: 0.5 # Radius of each dot (px)
   dot_alpha: 0.2  # Transparency of dots (0-1)
+
+# UI styling and layout configuration
+ui:
+  # Positioning and spacing
+  hud_position:
+    top: 20         # Top offset for HUD elements (px)
+    left: 20        # Left offset for HUD elements (px)
+  
+  # Thresholds and tolerances
+  prediction_error_threshold: 5     # Position prediction error tolerance (px)
+  heading_error_threshold: 5        # Heading prediction error tolerance (degrees)
+  
+  # Crosshair dimensions
+  crosshair_size: 5                # Half-size of crosshair lines (px)
+  
+  # Label positioning
+  tile_label_offset: 15            # Y offset for tile coordinate labels (px)
+  
+  # Camera shake fallback
+  camera_shake_fallback: 15        # Default shake magnitude when CONFIG not available
+  
+  # Frame/time conversion
+  frame_to_ms: 16                  # Frame to millisecond conversion factor
+
+  # Login overlay styling
+  login_overlay:
+    background_alpha: 0.85             # Background overlay transparency - slightly more opaque
+    input_width: 345                   # Width of name input field (px) - 15% wider
+    input_height: 55                   # Height of name input field (px) - slightly taller
+    button_width: 345                  # Width of play button (px) - match input width
+    button_height: 55                  # Height of play button (px) - match input height
+    element_spacing: 45                # Spacing between elements (px) - more breathing room
+    font_size: 16                      # Font size for overlay text (px) - slightly smaller for precision
+    title_font_size: 30                # Font size for main title (px)
+    title_glow_intensity: 55           # Reduced glow for crisp letters
+    glow_intensity: 30                 # Glow effect intensity for focused elements - tamed
+    border_width: 1                    # Hair-line border width (px)
+    input_background_alpha: 0.05       # Translucent cyan glass for input field
+    button_inner_glow_alpha: 0.15      # Subtle inner glow for button panel
+    frosted_glass_alpha: 0.12          # Semi-opaque frosted glass background
+    frosted_glass_blur: 8              # Blur effect for frosted glass (simulated)
+    unified_cyan: '#26c6da'            # Single cyan value for consistency
+    padding_vertical: 20               # Extra vertical padding inside elements
+    
+  # Leaderboard styling
+  leaderboard:
+    position:
+      top: 20                      # Top offset from screen edge (px)
+      right: 20                    # Right offset from screen edge (px)
+    width: 220                     # Width of leaderboard panel (px) - slightly wider
+    row_height: 28                 # Height of each player row (px) - more breathing room
+    max_players: 10                # Maximum players to display
+    font_size: 13                  # Font size for player names and scores
+    header_font_size: 15           # Font size for leaderboard header
+    padding: 15                    # Internal padding (px) - more generous
+    background_alpha: 0.08         # Background transparency - translucent cyan
+    background_color: 'rgba(0, 180, 200, 0.08)'  # Translucent cyan panel
+    border_width: 1                # Border width (px)
+    border_color: '#26c6da'        # Cyan outline color
+    title_letter_spacing: '0.1em'  # Wide-tracked uppercase for title
+    title_font_weight: 'bold'      # Title font weight
+    divider_alpha: 0.3             # Faint divider line transparency
+    top_player_glow_intensity: 15  # Glow intensity for top player
+    regular_player_alpha: 0.7      # Dimmer alpha for non-top players
+    pulse_speed: 0.02              # Speed of additive pulse for position changes
+    frosted_glass_alpha: 0.18      # Semi-opaque frosted glass background - more opaque
+    inner_padding: 12              # Inner padding for frosted glass effect
+    
+  # Death screen and respawn countdown
+  death_screen:
+    background_alpha: 0.7          # Background overlay transparency
+    countdown_font_size: 48        # Font size for countdown timer (px)
+    message_font_size: 24          # Font size for death message (px)
+    button_width: 200              # Width of respawn button (px)
+    button_height: 60              # Height of respawn button (px)
+    element_spacing: 30            # Spacing between elements (px)
+    glow_intensity: 20             # Glow effect intensity for countdown
+    pulse_speed: 0.05              # Speed of pulsing effects
+    
+  # Kill streak display
+  killstreak_display:
+    position:
+      top: 20                      # Top offset from screen edge (px)
+      left: 20                     # Left offset from screen edge (px)
+    width: 180                     # Width of kill streak panel (px)
+    height: 55                     # Height of kill streak panel (px)
+    font_size: 16                  # Font size for kill streak counter - slightly smaller
+    label_font_size: 12            # Font size for "Kill Streak:" label
+    glow_intensity: 8              # Glow effect intensity - reduced to match leaderboard level
+    spacing: 8                     # Spacing between label and number (px)
+    frosted_glass_alpha: 0.18      # Semi-opaque frosted glass background - more opaque
+    padding: 12                    # Internal padding (px)
+    border_width: 1                # Hair-line border width (px)
+
+# Color palette for "Living Blueprint" aesthetic
+colors:
+  # Base colors
+  base: '#000000'           # Background base color
+  primary_stroke: '#9EE7FF' # Primary neon blue stroke
+  dim_stroke: '#3A5F7F'     # Dimmed blue stroke
+  glow_accent: '#00FFF7'    # Cyan glow accent
+  error_accent: '#FF5C5C'   # Red error/player accent
+  
+  # Additional colors for UI elements
+  white: '#FFFFFF'          # Pure white for inner elements
+  tile_outline: '#FFFFFF'   # Tile outline color
+  
+  # Leaderboard specific colors
+  leaderboard_cyan: '#26c6da'      # Cyan outline and accent color
+  leaderboard_bg: 'rgba(0, 180, 200, 0.08)'  # Translucent cyan background
+  leaderboard_dim_cyan: 'rgba(0, 180, 200, 0.7)'  # Dimmer cyan for regular players
+  
+  # CSS-specific colors (will be converted to CSS custom properties)
+  css_background: '#000000'  # Body background color
+  css_text: '#9EE7FF'       # UI text color
+
+# Typography configuration
+typography:
+  # Font families
+  primary_font: 'Inter'     # Primary font family
+  title_font: 'Menlo, Monaco, "SF Mono", "Courier New", monospace'  # Angular monospace font for title
+  monospace_font: 'Monaco, "Lucida Console", monospace'  # Monospace font for leaderboard
+  
+  # Font sizes
+  ui_font_size: 16          # Main UI text size (px)
+  tile_label_size: 12       # Tile coordinate label size (px)
+  
+  # Font weights
+  ui_font_weight: 600       # UI text weight
+  
+  # Error message styling
+  error_message_style: 'color: #FF5C5C; font-family: Inter; padding: 20px; text-align: center;'
+
+# Patterns and arrays
+patterns:
+  # Line dash patterns
+  ammo_dash: [4, 4]         # Dash pattern for ammo spawn circles
+  
+  # Spacing patterns
+  shadow_blur_multiplier: 0.5  # Multiplier for inner shadow blur effects
+
+# CSS custom properties generation
+css_overrides:
+  # Generate CSS custom properties for these values
+  generate_css_vars: true
+  
+  # Values that need to be available in CSS
+  body_background: '#000000'
+  ui_text_color: '#9EE7FF'
+  ui_font_size: '16px'
+  ui_font_weight: '600'
+  ui_top_offset: '20px'
+  ui_left_offset: '20px'

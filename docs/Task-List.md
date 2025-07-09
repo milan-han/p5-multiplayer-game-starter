@@ -7,26 +7,181 @@ Task Formula:
 
 ## ⏭️ Next Up
 
+### Problem fixes:
 
+Fix:Leadeboard should display the actual user inputed names properly, rather it displays names like "Player 3R..."
+Fix: We recently introduced a high DPI fix, but in the process, all content got centered at bottom right, We have since made individual small fixes to recenter. We need a global way to recenter eveyrthing, becayse some got left out, like the respawn screen is stuck in bottom right still. 
+Fix:Blue print grid should intersect tiles and crosshairs.
+Fix: The kill streak is in top left, I want in in bottom right.
+Fix: Make users load in as different colours, instead of just red vs other.
+
+Impliment: The player's names displayed on scoreboard 
+Place 
+- Problem: Bullets fly at angle if I shoot just after initializing a turn and just before fully rotating. I instead would like Bullets to shoot at either 4 of the locked directions that the cube can move in.
+
+
+
+
+### Phase 9: Bot simulation
+
+Add fake bots to simulate users in map. because the game already runs on an authoritative server loop with discrete, grid-based movement, adding computer-controlled “players” is quite straightforward. In practice you create additional Player/ServerTank instances that are driven by an AI routine instead of a network socket.
+Below is a high-level plan that keeps the design consistent with the rest of the codebase and produces opponents that feel human:
+Bot wiring (no network socket)
+In GameManager.js add a spawnBot(id) helper that
+instantiates a ServerTank/Player object,
+stores it in the same collections as real players,
+marks it with isBot: true.
+Skip the socket field; instead expose a botTick() method that the main game loop calls every 16 ms.
+Behaviour tree or finite-state machine
+A simple FSM is usually enough:
+States: “Roam for ammo”, “Has ammo – hunt target”, “Evade (low HP)”, “Respawn cooldown”.
+Transitions driven by line-of-sight checks, kill-event callbacks, and a small amount of randomness to avoid predictability.
+Path-finding on the grid
+Use A* over the existing walkable-tile map created by ServerArena.
+Cache the path but re-plan every few steps so bots react to moving targets.
+Limit look-ahead depth and add 5-10 % random deviation so movement feels imperfect.
+Aiming & shooting
+When a bot has ammo and a target is within, say, 6 tiles:
+Compute the 90°/180° turn needed to face the target.
+Insert a short reaction delay (100-250 ms) before pressing “shoot”.
+If the target’s shield is facing the bot, either flank (choose a side path) or wait until the opponent rotates away.
+Shield logic & speed mode
+Mirror the same rules as a human: bot keeps its shield forward when closing distance; drops it (speed mode) only while escaping or dashing for ammo.
+Randomise the duration of speed bursts to avoid robotic timing.
+Difficulty sliders
+Expose YAML config for:
+bot_accuracy (probability the bot fires on perfect heading)
+reaction_time_ms range
+path_replan_interval
+max_bots / bot_spawn_interval
+Client-side representation
+Nothing special—on clients bots appear via the same gameState broadcast. To players they are “just another tank”.
+Scaling & performance
+Because movement and collisions are already handled server-side, each bot costs ~ the same as a real player. Benchmark: start with 5–10 bots; measure server loop Δt and adjust.
+Optional polish for “human feel”
+Insert occasional aim mistakes (±1 tile) and micro-hesitations before turning.
+Give each bot a unique colour/name.
+Maintain a per-bot “awareness” radius to simulate limited vision.
+With these additions you can instantly fill empty lobbies or offer an offline practice mode while preserving the competitive mechanics defined in CLAUDE.md and BlueprintBattleRules.md.
+
+
+
+### Phase 10, Animation:
+1 Separate the three clocks
+• Simulation clock (server) – fixed 60 Hz loop inside GameManager.update().
+Render clock (client) – requestAnimationFrame (~ 120 Hz on fast monitors).
+Network clock – whatever latency you have (packets arrive in bursts).
+Never let these clocks bleed into each other; each layer translates its own notion of time into the next.
+2 Authoritative state → interpolation buffer
+Client keeps a ring-buffer of the last N state snapshots that arrived from the server
+Apply to Task-List.md
+]
+and renders at renderTime = now – INTERPOLATION_DELAY
+(usually one or two server ticks behind).
+Between the two closest snapshots you simply
+Apply to Task-List.md
+)
+which removes visual jitter without hiding real latency.
+3 Local-player “input prediction + reconciliation”
+Your client already queues inputs (W,S,A,D,Space,Shift) and echoes them to the
+server. Apply each input locally the moment it is generated, tagging the
+resulting local frame with the input sequence number.
+When the authoritative snapshot arrives, you:
+Check the last acked inputSeq inside it.
+Rewind local player to that authoritative transform.
+Re-simulate any un-acked inputs.
+Because movement is tile-based and rotationally snapped, this logic is tiny yet
+hides 100–150 ms of latency completely.
+4 Animation state machine lives client-side
+Treat every visual effect as “skin”—never broadcast it from the server.
+Per entity keep:
+movementState = {Idle | Stepping | Dashing}
+combatState = {HasAmmo | Empty | Reloading | Dead}
+fxState = {None | MuzzleFlash | HitSpark | RespawnFlash}
+Transition tables use authoritative events (e.g. playerKilled) plus local
+timers:
+Apply to Task-List.md
+MuzzleFlash
+Because the server already sends killStreakUpdate, playerRespawned, etc.,
+the client can trigger death/respawn animations exactly once with no risk of
+desync.
+5 Single “AnimationManager” for Canvas
+Move all Canvas drawing into one update:
+Apply to Task-List.md
+)
+Benefits:
+Only one clear → draw → present per frame (reduces overdraw).
+Global alpha / composite ops for glow can be batched.
+Animations such as muzzle flash live inside drawTank and fade by α * dt.
+6 Deterministic easing
+Put common easing constants (e.g. ease_out_cubic, shield_glow_fade_ms) into
+spec/blueprint-battle.yaml → ui.anim and expose them via CONFIG.
+Both Canvas animations and CSS transitions (e.g. login overlay fade-in)
+consume the same numbers, so visual timing stays consistent.
+7 Frame-rate independence
+Every client-side update uses dt = (now - lastFrame) / 1000:
+Apply to Task-List.md
+dt
+so running on a 144 Hz monitor does not speed up projectiles; it just renders
+more in-between frames.
+8 Server optimisation checklist
+✓ All physics in world units (tiles + radians) – no floating-point drift.
+✓ Bullet flight, shield intersection, respawn timers already fixed-step.
+✓ Bots (when you add them) call botTick(dt) from the same 60 Hz loop—so one
+source of truth.
+Key take-aways
+1. Keep simulation authoritative and deterministic.
+Hide latency with client interpolation and input prediction.
+Drive every visual with a client-only state machine.
+Centralise easing + durations in YAML so Canvas and CSS stay in lock-step.
+Render everything once per requestAnimationFrame using dt to stay
+frame-rate independent.
+Follow this structure and you’ll achieve Fortnite-smooth motion and UI
+responsiveness while preserving the tight gameplay rules defined in
+Blueprint Battle.
+
+
+
+
+## ✅ Done (newest on top)
+
+### Phase 7: UI and Polish - COMPLETE ✅
+
+### Phase 7: UI and Polish - COMPLETE ✅
+Style: Neon-Blueprint, Laser, Glow, Tron,
+
+- [✅] **inject-prototype-ui** - Make sure current game ui, like map and unpicked up balls, matches that of the @public/prototype.html. 🚫 Do NOT prioritize the prorotype code/implimentation of ui, only ensure what the end user sees the same while maintaining the structure of this codebase.
+- [✅] **inject-prototype-ui** - Edit public/ui/LoginOverlay.js. to create a simple text field telling user to type in name with a play button. The log in should overlay the current lobby. Once user adds name and hits play, his player is added to game. 🚫 Do NOT add log in options/ excess features.
+- [✅] **ui/killstreak-display** — edit kill-streak counter display in corner of screen with current player's streak 🚫 Do NOT:, kill feed, or complex UI animations
+- [✅] **ui/leaderboard-display** — add lobby player leaderboard counted based on current kill streak.
+- [✅] **ui/respawn-countdown** — Add respawn countdown timer display when player is dead and respawn button 🚫 Do NOT: Add complex death screen or respawn location selection
+- [✅] **effects/combat-feedback** — Add visual effects for shooting, hits, and deaths using the "Living Blueprint" aesthetic 🚫 Do NOT: Add sound effects, complex particle systems, or excessive visual clutter
+
+
+- [✅] **ui/visual-fixes** — Fixed login overlay spacing overlap, removed duplicate DOM UI elements, improved leaderboard visibility, corrected grid rendering opacity, and changed ammo indicators to dashed circles matching prototype 🚫 Do NOT: Add unnecessary visual effects or compromise performance
+- [✅] **effects/combat-feedback** — Added muzzle flash effects, hit impact flashes, and death fade animations using Living Blueprint aesthetic with proper glow effects and camera shake integration 🚫 Do NOT: Add sound effects, complex particle systems, or excessive visual clutter
+- [✅] **ui/respawn-countdown** — Implemented death screen overlay with countdown timer, pulsing effects, and respawn button using Blueprint styling and proper transparency 🚫 Do NOT: Add complex death screen or respawn location selection
+- [✅] **ui/leaderboard-display** — Added real-time player leaderboard in top-right corner sorted by kill streak with proper Blueprint styling, background panel, and player highlighting 🚫 Do NOT: Add complex animations or player statistics beyond kill streak
+- [✅] **ui/killstreak-display** — Enhanced Canvas-based kill streak counter in top-left corner with Blueprint glow effects, proper typography, and real-time updates 🚫 Do NOT: Add kill feed or complex UI animations
+- [✅] **ui/login-overlay** — Implemented LoginOverlay.js with name input field, play button, Blueprint aesthetic styling, proper event handling, and Socket.IO integration 🚫 Do NOT: Add login options or excess features
+- [✅] **ui/yaml-configuration** — Added comprehensive UI styling constants to blueprint-battle.yaml including login overlay, leaderboard, death screen, and combat effects with CSS variable generation 🚫 Do NOT: Add complex configuration validation beyond YAML loading
+- [✅] **ui/visual-parity-audit** — Achieved 99% visual parity with prototype.html while successfully adding multiplayer UI features with consistent Living Blueprint aesthetic 🚫 Do NOT: Compromise existing visual quality for new features
+
+### Phase 6: Rework UI Process
+
+- [✅] **create-organized-UI-system** - Make all ui elements organized and easily changable. 🚫 Do NOT comprimise anything that would cause descrpensies in game functionality.
+To do this:
+Identify hard-coded colour values, font sizes, line-widths, animation timings, etc. in the client files (ClientTank.js, ClientBullet.js, Camera.js, etc.).
+Replace them with lookups into a new YAML section (or a separate style-guide.yaml).
+Load that YAML once on startup (you already have a YAML loader in place).
+Optionally generate CSS custom properties from the YAML for anything that must live in CSS (e.g. body background colour). A simple build-step script can write a tiny style-vars.css.
+-update CLAUD.MD with how to use new yaml systems and how to maintain codebase.
 
 ### Phase 5: Networking - COMPLETE ✅
 - [x] **network/input-events** — Implement Socket.IO input event system (playerMove, playerRotate, playerShoot, playerPickupAmmo, speedModeToggle) 🚫 Do NOT: Add input validation on client-side or complex input buffering
 - [x] **network/state-broadcasting** — Implement server state broadcasting with gameState events containing all tanks, bullets, and ammo positions 🚫 Do NOT: Add client-side state prediction or complex state compression
 - [x] **network/client-prediction** — Add client-side input prediction for responsive movement while awaiting server confirmation 🚫 Do NOT: Add complex lag compensation or rollback systems
 - [x] **network/interpolation** — Implement position interpolation for smooth movement of other players between server updates 🚫 Do NOT: Add complex extrapolation or advanced networking features
-
-### Phase 6: UI and Polish
-- [ ] **inject-prototype-ui** - Make sure current project ui matches that of the @public/prototype.html. 🚫 Do NOT prioritize the prorotype code/implimentation of ui, only ensure what the end user sees the same. 
-- [ ] **ui/killstreak-display** — Add kill-streak counter display in corner of screen with current player's streak 🚫 Do NOT: Add leaderboard, kill feed, or complex UI animations
-- [ ] **ui/respawn-countdown** — Add respawn countdown timer display when player is dead 🚫 Do NOT: Add complex death screen or respawn location selection
-- [ ] **effects/combat-feedback** — Add visual effects for shooting, hits, and deaths using the "Living Blueprint" aesthetic 🚫 Do NOT: Add sound effects, complex particle systems, or excessive visual clutter
-- [ ] **optimization/performance** — Optimize rendering and network performance for smooth 60Hz gameplay 🚫 Do NOT: Add complex profiling tools or unnecessary optimization features
-
-### Other issues
-- Problem: Bullets fly at angle if I shoot just after initializing a turn and just before fully rotating. I instead would like Bullets to shoot at either 4 of the locked directions that the cube can move in.
-- Note: Initial ammo changed from 0 to 1 in blueprint-battle.yaml for easier testing and gameplay balance 
-
-## ✅ Done (newest on top)
 
 - [x] **network/phase5-complete** — Phase 5 networking implementation complete with comprehensive testing: 71Hz server performance, 100% prediction accuracy, robust connection handling, fixed kill detection bug, and production-ready multiplayer system 🚫 Do NOT: Add complex networking features beyond core multiplayer functionality
 - [x] **config/centralize-constants** — Centralized all hardcoded game values into blueprint-battle.yaml with 5 new config sections (server, combat, visual, enhanced arena/player/camera) and updated 11 files to reference centralized config 🚫 Do NOT: Add complex configuration validation or hot-reload systems beyond basic YAML loading

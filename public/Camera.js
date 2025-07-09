@@ -15,9 +15,13 @@ class Camera {
         this.lookAheadDistance = CONFIG.player.look_ahead.normal;
         this.isMoving = false;
         this.lastMovementTime = 0;
+        // Dynamic zoom factor – scales world units so ~`CONFIG.camera.fov_blocks` tiles fit the screen width
+        this.zoom = 1;
     }
     
     update(gameState, myPlayerId) {
+        // Recompute zoom every frame to react to window resizes
+        this.updateZoom();
         // Find my tank
         const myTank = gameState.tanks.find(tank => tank.id === myPlayerId);
         if (!myTank || !myTank.alive) return;
@@ -69,6 +73,23 @@ class Camera {
     // No longer needed because we read keys state directly, keep for back-compat but do nothing
     onPlayerMove() {}
     
+    // ---------------------------------------------------------------------------------
+    // ZOOM / FOV HELPERS
+    // ---------------------------------------------------------------------------------
+    updateZoom() {
+        // Desired number of blocks to show across the screen (defaults to 12)
+        const desiredBlocks = (CONFIG?.camera?.fov_blocks) ?? 12;
+        const worldWidthForBlocks = desiredBlocks * CONFIG.arena.tile_size;
+        // Account for device pixel ratio so calculation is based on CSS pixels, not backing store pixels
+        const dpr = window.devicePixelRatio || 1;
+        if (canvas) {
+            const cssWidth = canvas.width / dpr; // convert backing store width to CSS pixel width
+            this.zoom = cssWidth / worldWidthForBlocks;
+        } else {
+            this.zoom = 1;
+        }
+    }
+    
     // Convert world coordinates to screen coordinates
     worldToScreen(worldX, worldY) {
         // Apply camera transformation
@@ -83,9 +104,13 @@ class Camera {
         const rotatedX = translatedX * cos - translatedY * sin;
         const rotatedY = translatedX * sin + translatedY * cos;
         
+        // Apply zoom (scale)
+        const scaledX = rotatedX * this.zoom;
+        const scaledY = rotatedY * this.zoom;
+        
         // Translate to screen center
-        const screenX = rotatedX + canvas.width / 2;
-        const screenY = rotatedY + canvas.height / 2;
+        const screenX = scaledX + canvas.width / 2;
+        const screenY = scaledY + canvas.height / 2;
         
         return { x: screenX, y: screenY };
     }
@@ -93,8 +118,8 @@ class Camera {
     // Convert screen coordinates to world coordinates
     screenToWorld(screenX, screenY) {
         // Translate from screen center
-        const translatedX = screenX - canvas.width / 2;
-        const translatedY = screenY - canvas.height / 2;
+        const translatedX = (screenX - canvas.width / 2) / this.zoom;
+        const translatedY = (screenY - canvas.height / 2) / this.zoom;
         
         // Apply inverse rotation
         const cos = Math.cos(this.rotation);

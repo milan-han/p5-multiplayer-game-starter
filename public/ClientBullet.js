@@ -114,9 +114,9 @@ class ClientBullet {
         ctx.fill();
         
         // Draw inner bright core
-        ctx.shadowBlur = CONFIG.visual.bullet_glow_shadow_blur * this.glowIntensity * 0.5;
+        ctx.shadowBlur = CONFIG.visual.bullet_glow_shadow_blur * this.glowIntensity * CONFIG.patterns.shadow_blur_multiplier;
         ctx.globalAlpha = this.alpha * CONFIG.visual.bullet_inner_alpha;
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = CONFIG.colors.white;
         
         ctx.beginPath();
         ctx.arc(x, y, this.radius * CONFIG.visual.bullet_inner_radius_ratio, 0, Math.PI * 2);

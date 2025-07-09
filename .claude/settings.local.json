@@ -35,7 +35,11 @@
       "Bash(ls:*)",
       "Bash(curl:*)",
       "Bash(cat:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm run build:css:*)",
+      "Bash(rg:*)"
     ],
     "deny": [
       "Bash(dd:*)",

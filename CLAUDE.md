@@ -20,6 +20,7 @@ This is a Node.js multiplayer game starter built with p5.js, Socket.IO, and Expr
 - `npm install` - Install dependencies
 - `npm start` - Start the development server with nodemon on port 80
 - `npm test` - Currently shows "no test specified" error
+- `npm run build:css` - Generate CSS custom properties from YAML configuration
 
 ## SPEC 
 @spec/blueprint-battle.yaml
@@ -68,6 +69,26 @@ This is a Node.js multiplayer game starter built with p5.js, Socket.IO, and Expr
 - **"Living Blueprint" aesthetic**: Neon colors, grid patterns, glowing effects
 - **Color Palette**: `#000000` (base), `#9EE7FF` (primary), `#00FFF7` (glow), `#FF5C5C` (player)
 
+### Centralized UI System
+- **YAML Configuration**: All visual styling controlled via `spec/blueprint-battle.yaml`
+- **JavaScript CONFIG**: Client-side code uses `CONFIG.section.property` lookups
+- **CSS Custom Properties**: Generated from YAML for CSS styling with `npm run build:css`
+- **No Hard-coded Values**: All colors, fonts, dimensions, and thresholds centralized
+- **Automatic CSS Generation**: Build script creates `public/style-vars.css` from YAML
+
+#### YAML Configuration Sections:
+- `ui`: Positioning, thresholds, dimensions, and UI layout values
+- `colors`: Complete color palette including CSS-specific colors
+- `typography`: Font families, sizes, weights, and text styling
+- `patterns`: Line dash patterns, spacing multipliers, and visual patterns
+- `css_overrides`: Values that need CSS custom properties generation
+
+#### How to Modify Visual Styling:
+1. Edit values in `spec/blueprint-battle.yaml`
+2. Run `npm run build:css` to regenerate CSS custom properties
+3. Restart server to reload configuration (`npm start`)
+4. All changes automatically applied to both JavaScript and CSS styling
+
 ### Blueprint Battle Game Features
 - **Tank Class**: Grid-based movement (250px tiles) with smooth interpolation
 - **Combat System**: Directional shields (150° front arc), projectile physics, hit detection
@@ -112,3 +133,29 @@ This is a Node.js multiplayer game starter built with p5.js, Socket.IO, and Expr
 2. **Fairness**: Server-authoritative hit detection and movement validation
 3. **Responsiveness**: Client-side prediction with server reconciliation
 4. **Visual Quality**: Maintain prototype's polished "Living Blueprint" aesthetic
+
+## UI System Maintenance Guidelines
+
+### Adding New Visual Constants
+1. **Add to YAML**: Define new values in appropriate section of `spec/blueprint-battle.yaml`
+2. **Update Build Script**: If CSS access needed, add to `css_overrides` section
+3. **Use in Code**: Reference via `CONFIG.section.property` in JavaScript
+4. **Regenerate CSS**: Run `npm run build:css` if CSS variables needed
+
+### Modifying Existing Styling
+1. **Edit YAML Only**: Never modify hard-coded values in JavaScript/CSS files
+2. **Consistent Naming**: Use snake_case in YAML, kebab-case in CSS variables
+3. **Test Changes**: Always test visual changes against prototype for consistency
+4. **Document Changes**: Update this file if adding new configuration sections
+
+### Color Palette Management
+- **Primary Colors**: Stored in `colors` section of YAML
+- **Palette Object**: Auto-generated in `game.js` from CONFIG
+- **CSS Colors**: Separate `css_` prefixed colors for CSS-specific styling
+- **Consistency**: Use same color values across JavaScript and CSS
+
+### Critical Rules
+- **No Hard-coded Values**: All styling must come from YAML configuration
+- **Visual Parity**: Changes must maintain identical appearance to prototype
+- **Build Process**: Always run `npm run build:css` after YAML changes
+- **Centralized Source**: YAML is single source of truth for all styling

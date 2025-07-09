@@ -58,7 +58,7 @@ class ClientTank {
         const predictionError = Math.abs(this.predictedX - serverX) + Math.abs(this.predictedY - serverY);
         const headingError = Math.abs(this.predictedHeading - serverHeading);
         
-        if (predictionError > 5 || headingError > 5) {
+        if (predictionError > CONFIG.ui.prediction_error_threshold || headingError > CONFIG.ui.heading_error_threshold) {
             // Prediction was wrong, snap to server position
             this.predictedX = serverX;
             this.predictedY = serverY;
@@ -203,7 +203,7 @@ class ClientTank {
         
         ctx.fillStyle = PALETTE.glowAccent;
         ctx.shadowColor = PALETTE.glowAccent;
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = CONFIG.visual.ammo_indicator_radius;
         
         // Draw filled circle indicating ammo
         ctx.beginPath();
