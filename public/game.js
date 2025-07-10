@@ -157,8 +157,10 @@ function init() {
         clientArena = new ClientArena();
         backgroundPattern = createBackgroundPattern();
         
-        // Create socket connection (but don't join game yet)
-        socket = io(`http://localhost:${CONFIG.server.port}`);
+        // Create socket connection (works in both dev and production)
+        // In development: connects to localhost:8080
+        // In production: connects to the current domain
+        socket = io();
         setupSocketEvents();
         
         // Initialize network manager with enhanced prediction
