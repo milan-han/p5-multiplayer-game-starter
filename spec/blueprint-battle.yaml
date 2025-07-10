@@ -4,6 +4,8 @@
 server:
   port: 8080                  # Server port for HTTP and Socket.IO
   game_loop_interval_ms: 16   # Game loop update interval (60Hz)
+  target_fps: 60              # Target server FPS (can be overridden by SERVER_TARGET_FPS env var)
+  performance_warning_threshold: 58  # FPS threshold below which to show warnings
 
 # Bot configuration for AI players
 bots:

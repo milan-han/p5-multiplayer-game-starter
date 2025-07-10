@@ -36,8 +36,10 @@ class GameManager {
       timestamp: Date.now()
     };
     
-    // High-resolution timing for precise 60Hz game loop
-    this.targetFPS = 60;
+    // High-resolution timing for precise game loop
+    // Allow environment variable override for deployment environments (e.g., Render.com free tier)
+    this.targetFPS = process.env.SERVER_TARGET_FPS ? parseInt(process.env.SERVER_TARGET_FPS) : config.server.target_fps;
+    this.performanceWarningThreshold = config.server.performance_warning_threshold;
     this.targetFrameTime = 1000000000n / BigInt(this.targetFPS); // nanoseconds per frame
     this.lastFrameTime = process.hrtime.bigint();
     this.isRunning = true;
@@ -78,8 +80,8 @@ class GameManager {
           this.lastSecond = now;
           
           // Log performance every 10 seconds
-          if (this.actualFPS < 58) {
-            console.warn(`⚠️  Server FPS: ${this.actualFPS}/60 (performance warning)`);
+          if (this.actualFPS < this.performanceWarningThreshold) {
+            console.warn(`⚠️  Server FPS: ${this.actualFPS}/${this.targetFPS} (performance warning)`);
           }
         }
       }
