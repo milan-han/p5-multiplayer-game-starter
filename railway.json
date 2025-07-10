@@ -12,8 +12,13 @@
     "sleepApplication": false,
     "environmentVariables": {
       "NODE_ENV": "production",
-      "SERVER_TARGET_FPS": "60",
-      "SERVER_PERFORMANCE_WARNING_THRESHOLD": "45"
+      "SERVER_TARGET_FPS": "30",
+      "SERVER_PERFORMANCE_WARNING_THRESHOLD": "25",
+      "SERVER_ENABLE_OPTIMIZATION": "true",
+      "BOT_AI_UPDATE_HZ": "15",
+      "NETWORK_BROADCAST_HZ": "20",
+      "MAX_PLAYERS": "6",
+      "MAX_BOTS": "2"
     },
     "multiRegionConfig": {
       "us-west2": {

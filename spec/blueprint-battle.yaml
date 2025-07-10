@@ -6,37 +6,62 @@ server:
   game_loop_interval_ms: 16   # Game loop update interval (60Hz)
   target_fps: 60              # Target server FPS (can be overridden by SERVER_TARGET_FPS env var)
   performance_warning_threshold: 58  # FPS threshold below which to show warnings
+  
+  # Performance optimization settings
+  optimization:
+    # Network optimization
+    broadcast_frequency_hz: 30      # Broadcast game state at lower frequency than game loop
+    enable_delta_compression: true  # Only send changed data (TODO: implement)
+    max_players_per_room: 8        # Limit concurrent players
+    
+    # Timing optimization  
+    use_simple_timing: false       # Use Date.now() instead of process.hrtime.bigint() for better performance
+    batch_updates: true           # Process multiple updates in batches
+    
+    # Memory optimization
+    enable_object_pooling: true   # Reuse bullet/tank objects
+    garbage_collection_interval: 10000 # Force GC every 10 seconds
 
 # Bot configuration for AI players
 bots:
-  # Spawning and scaling
-  max_bots: 6                    # Maximum simultaneous bots
-  min_bots: 3                    # Minimum bots when humans present
-  spawn_interval_ms: 15000       # Time between bot spawns
-  auto_scale_difficulty: true    # Increase difficulty with player skill
+  # Spawning and scaling - OPTIMIZED FOR PERFORMANCE
+  max_bots: 3                    # Reduced from 6 - Maximum simultaneous bots
+  min_bots: 1                    # Reduced from 3 - Minimum bots when humans present  
+  spawn_interval_ms: 20000       # Increased from 15000 - Time between bot spawns
+  auto_scale_difficulty: false   # Disabled - Increase difficulty with player skill
+  
+  # Performance optimization
+  optimization:
+    ai_update_frequency_hz: 20   # Update bot AI at 20Hz instead of 60Hz
+    pathfinding_cache_size: 50   # Reduce pathfinding cache size
+    max_pathfinding_nodes: 200   # Reduce from 500 - Limit search complexity
+    vision_update_interval: 3    # Update vision every 3 frames instead of every frame
+    decision_update_interval: 5  # Update decisions every 5 frames
   
   # AI behavior tuning
   ai:
-    vision_range_tiles: 8        # Bot perception range
-    reaction_time_ms: [150, 300] # Min/max reaction delays
-    accuracy_probability: 0.80   # Shot accuracy (0.0-1.0)
-    aim_deviation_degrees: 20    # Maximum aim error
+    vision_range_tiles: 6        # Reduced from 8 - Bot perception range
+    reaction_time_ms: [200, 400] # Increased from [150, 300] - Min/max reaction delays
+    accuracy_probability: 0.70   # Reduced from 0.80 - Shot accuracy (0.0-1.0)
+    aim_deviation_degrees: 25    # Increased from 20 - Maximum aim error
     
-  # Movement behavior
+  # Movement behavior - SIMPLIFIED FOR PERFORMANCE
   movement:
-    path_replan_interval: 24     # Frames between pathfinding updates - increased for smoother movement
-    stuck_threshold_frames: 60   # Frames to detect stuck condition - increased for more patience
-    random_movement_chance: 0.08 # Probability of random movement - reduced for more focused movement
-    speed_mode_probability: 0.25 # Chance to use speed mode when fleeing - slightly reduced
+    path_replan_interval: 40     # Increased from 24 - Frames between pathfinding updates
+    stuck_threshold_frames: 90   # Increased from 60 - Frames to detect stuck condition
+    random_movement_chance: 0.15 # Increased from 0.08 - More random, less computation
+    speed_mode_probability: 0.15 # Reduced from 0.25 - Less speed mode usage
+    simple_movement_mode: true   # Use cardinal-only movement instead of A* pathfinding
     
-  # Combat behavior
+  # Combat behavior - SIMPLIFIED
   combat:
-    engagement_range_tiles: 6    # Range to start combat
-    flank_attempt_probability: 0.7 # Chance to flank shielded target
+    engagement_range_tiles: 5    # Reduced from 6 - Range to start combat
+    flank_attempt_probability: 0.5 # Reduced from 0.7 - Chance to flank shielded target
     retreat_health_threshold: 0   # Currently binary (alive/dead)
-    shield_usage_intelligence: 0.85 # How well bot manages shield
+    shield_usage_intelligence: 0.75 # Reduced from 0.85 - How well bot manages shield
+    simple_aiming: true          # Use simpler aiming calculations
     
-  # Personality randomization
+  # Personality randomization - SIMPLIFIED
   personalities:
     aggressive: 0.3              # Probability of aggressive bot
     defensive: 0.3               # Probability of defensive bot
@@ -229,43 +254,51 @@ ui:
     
   # Animation system configuration
   anim:
-    # Interpolation and timing
-    interpolation_delay_ms: 33         # Render delay behind server (2 ticks at 60Hz)
-    interpolation_buffer_size: 12      # Number of state snapshots to store - increased for smoother interpolation
-    delta_time_smoothing: 0.15         # Smoothing factor for delta time calculation - increased for better frame rate stability
+    # Performance optimization settings
+    optimization:
+      target_client_fps: 30          # Reduce client FPS target from 60 to 30
+      max_concurrent_animations: 10  # Limit simultaneous animations
+      skip_invisible_animations: true # Don't animate off-screen elements
+      reduce_effects_on_low_fps: true # Automatically reduce effects when FPS drops
+      animation_quality: 'medium'     # Options: low, medium, high
+      
+    # Interpolation and timing - OPTIMIZED FOR PERFORMANCE
+    interpolation_delay_ms: 50         # Increased from 33 - Render delay behind server 
+    interpolation_buffer_size: 8       # Reduced from 12 - Number of state snapshots to store
+    delta_time_smoothing: 0.2          # Increased from 0.15 - More smoothing, less computation
     
-    # Easing functions and curves
-    ease_out_cubic: 0.25              # Cubic easing factor for smooth transitions
-    ease_in_out_quad: 0.5             # Quadratic easing for UI animations
+    # Easing functions and curves - SIMPLIFIED
+    ease_out_cubic: 0.3               # Increased from 0.25 - Less precise but faster
+    ease_in_out_quad: 0.6             # Increased from 0.5 - Simpler calculations
     ease_linear: 1.0                  # Linear easing for constant animations
     
-    # Animation durations (milliseconds)
-    shield_glow_fade_ms: 200          # Shield fade in/out duration
-    muzzle_flash_duration_ms: 83      # Muzzle flash duration (5 frames at 60Hz)
-    hit_flash_duration_ms: 133        # Hit flash duration (8 frames at 60Hz)
-    death_fade_duration_ms: 500       # Death fade duration (30 frames at 60Hz)
-    respawn_flash_duration_ms: 300    # Respawn flash duration
+    # Animation durations (milliseconds) - LONGER FOR PERFORMANCE
+    shield_glow_fade_ms: 300          # Increased from 200 - Shield fade in/out duration
+    muzzle_flash_duration_ms: 100     # Increased from 83 - Muzzle flash duration 
+    hit_flash_duration_ms: 150        # Increased from 133 - Hit flash duration
+    death_fade_duration_ms: 400       # Reduced from 500 - Death fade duration
+    respawn_flash_duration_ms: 250    # Reduced from 300 - Respawn flash duration
     
-    # Position and rotation interpolation
-    position_lerp_factor: 0.3         # Position interpolation speed - reduced for smoother movement
-    rotation_lerp_factor: 0.1         # Rotation interpolation speed - reduced for smoother rotation
-    camera_lerp_factor: 0.08          # Camera follow interpolation speed - reduced for smoother following
+    # Position and rotation interpolation - LESS FREQUENT UPDATES
+    position_lerp_factor: 0.4         # Increased from 0.3 - Faster, less smooth but fewer calculations
+    rotation_lerp_factor: 0.15        # Increased from 0.1 - Faster rotation interpolation
+    camera_lerp_factor: 0.12          # Increased from 0.08 - Faster camera following
     
-    # Visual effect parameters
-    alpha_fade_rate: 0.02             # Alpha fade rate per frame (60Hz)
-    glow_pulse_speed: 0.005           # Glow pulse animation speed
-    shake_decay_rate: 0.9             # Camera shake decay per frame
-    trail_fade_rate: 0.8              # Bullet trail fade rate
+    # Visual effect parameters - REDUCED COMPLEXITY
+    alpha_fade_rate: 0.04             # Increased from 0.02 - Faster fading, fewer frames
+    glow_pulse_speed: 0.01            # Increased from 0.005 - Faster pulses
+    shake_decay_rate: 0.95            # Increased from 0.9 - Faster shake decay
+    trail_fade_rate: 0.9              # Increased from 0.8 - Faster trail fading
     
-    # State machine timings
-    movement_state_transition_ms: 50  # Movement state transition timing
-    combat_state_transition_ms: 100   # Combat state transition timing
-    effect_state_transition_ms: 16    # Effect state transition timing (1 frame)
+    # State machine timings - REDUCED FREQUENCY
+    movement_state_transition_ms: 100  # Increased from 50 - Less frequent transitions
+    combat_state_transition_ms: 150   # Increased from 100 - Less frequent transitions  
+    effect_state_transition_ms: 33    # Increased from 16 - Less frequent transitions (30fps)
     
-    # Frame rate independence
-    target_fps: 60                    # Target FPS for frame-independent calculations
-    max_delta_time: 0.033             # Maximum delta time (33ms) to prevent large jumps
-    min_delta_time: 0.008             # Minimum delta time (8ms) for very fast systems
+    # Frame rate independence - PERFORMANCE FOCUSED
+    target_fps: 30                    # Reduced from 60 - Target FPS for frame-independent calculations
+    max_delta_time: 0.05              # Increased from 0.033 - Allow larger jumps
+    min_delta_time: 0.01              # Increased from 0.008 - Fewer micro-updates
 
 # Color palette for "Living Blueprint" aesthetic
 colors:

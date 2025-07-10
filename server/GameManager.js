@@ -20,7 +20,7 @@ class GameManager {
     this.nextBotId = 1;
     this.lastBotSpawnTime = 0;
     this.botSpawnInterval = config.bots.spawn_interval_ms;
-    this.maxBots = config.bots.max_bots;
+    this.maxBots = process.env.MAX_BOTS ? parseInt(process.env.MAX_BOTS) : config.bots.max_bots;
     this.minBots = config.bots.min_bots;
     
     // Track player order for color assignment
@@ -47,6 +47,18 @@ class GameManager {
     this.frameCount = 0;
     this.lastSecond = Date.now();
     this.actualFPS = 0;
+    
+    // Network optimization - broadcast less frequently than game loop
+    this.networkBroadcastHz = process.env.NETWORK_BROADCAST_HZ ? parseInt(process.env.NETWORK_BROADCAST_HZ) : this.targetFPS;
+    this.networkBroadcastInterval = 1000000000n / BigInt(this.networkBroadcastHz); // nanoseconds
+    this.lastBroadcastTime = process.hrtime.bigint();
+    this.broadcastFrameCount = 0;
+    
+    // Bot AI optimization - update bots less frequently
+    this.botUpdateHz = process.env.BOT_AI_UPDATE_HZ ? parseInt(process.env.BOT_AI_UPDATE_HZ) : this.targetFPS;
+    this.botUpdateInterval = 1000000000n / BigInt(this.botUpdateHz); // nanoseconds
+    this.lastBotUpdateTime = process.hrtime.bigint();
+    this.botFrameCount = 0;
     
     // Start high-resolution game loop
     this.startHighResolutionLoop();
@@ -94,6 +106,15 @@ class GameManager {
     // Start the loop
     loop();
     console.log(`🚀 High-resolution game loop started (target: ${this.targetFPS}Hz)`);
+    
+    // Log performance optimization settings
+    if (this.networkBroadcastHz !== this.targetFPS || this.botUpdateHz !== this.targetFPS) {
+      console.log(`⚡ Performance optimizations enabled:`);
+      console.log(`   - Game loop: ${this.targetFPS}Hz`);
+      console.log(`   - Network broadcasts: ${this.networkBroadcastHz}Hz`);
+      console.log(`   - Bot AI updates: ${this.botUpdateHz}Hz`);
+      console.log(`   - Max bots: ${this.maxBots}`);
+    }
   }
 
   setupSocketEvents() {
@@ -251,12 +272,26 @@ class GameManager {
   updateGame(frameTimeMs = 16.67) {
     // Pass frame time for frame-rate independent calculations
     this.updateTanks(frameTimeMs);
-    this.updateBots(frameTimeMs);
+    
+    // Update bots at reduced frequency for performance
+    const currentTime = process.hrtime.bigint();
+    if (currentTime - this.lastBotUpdateTime >= this.botUpdateInterval) {
+      this.updateBots(frameTimeMs);
+      this.lastBotUpdateTime = currentTime;
+      this.botFrameCount++;
+    }
+    
     this.updateBullets(frameTimeMs);
     this.updateArena(frameTimeMs);
     this.checkCollisions(frameTimeMs);
     this.manageBotSpawning(frameTimeMs);
-    this.broadcastGameState();
+    
+    // Broadcast game state at reduced frequency for performance
+    if (currentTime - this.lastBroadcastTime >= this.networkBroadcastInterval) {
+      this.broadcastGameState();
+      this.lastBroadcastTime = currentTime;
+      this.broadcastFrameCount++;
+    }
   }
 
   updateTanks(frameTimeMs) {
