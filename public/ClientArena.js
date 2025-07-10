@@ -30,18 +30,22 @@ class ClientArena {
     
     drawGridLines(ctx, bounds, margin) {
         // Use lighter color and lower alpha to match prototype
-        ctx.strokeStyle = PALETTE.dimStroke;
+        ctx.strokeStyle = CONFIG.colors.arena_grid;
         ctx.globalAlpha = CONFIG.visual.arena_grid_alpha;
         ctx.lineWidth = CONFIG.visual.arena_grid_line_width;
         
-        // Calculate visible grid range aligned to world coordinates
-        const startX = Math.floor((bounds.minX - margin) / this.tileSize) * this.tileSize;
-        const endX = Math.ceil((bounds.maxX + margin) / this.tileSize) * this.tileSize;
-        const startY = Math.floor((bounds.minY - margin) / this.tileSize) * this.tileSize;
-        const endY = Math.ceil((bounds.maxY + margin) / this.tileSize) * this.tileSize;
+        // Use tile size for grid that aligns with tile boundaries
+        const gridSize = CONFIG.arena.tile_size;
+        const offset = gridSize / 2; // Offset grid lines to go through middle of tiles
+        
+        // Calculate visible grid range aligned to world coordinates with offset
+        const startX = Math.floor((bounds.minX - margin - offset) / gridSize) * gridSize + offset;
+        const endX = Math.ceil((bounds.maxX + margin - offset) / gridSize) * gridSize + offset;
+        const startY = Math.floor((bounds.minY - margin - offset) / gridSize) * gridSize + offset;
+        const endY = Math.ceil((bounds.maxY + margin - offset) / gridSize) * gridSize + offset;
         
         // Draw vertical lines that extend beyond visible area to ensure intersection
-        for (let x = startX; x <= endX; x += this.tileSize) {
+        for (let x = startX; x <= endX; x += gridSize) {
             ctx.beginPath();
             ctx.moveTo(x, bounds.minY - margin * 2);
             ctx.lineTo(x, bounds.maxY + margin * 2);
@@ -49,7 +53,7 @@ class ClientArena {
         }
         
         // Draw horizontal lines that extend beyond visible area to ensure intersection
-        for (let y = startY; y <= endY; y += this.tileSize) {
+        for (let y = startY; y <= endY; y += gridSize) {
             ctx.beginPath();
             ctx.moveTo(bounds.minX - margin * 2, y);
             ctx.lineTo(bounds.maxX + margin * 2, y);
@@ -84,7 +88,7 @@ class ClientArena {
             
             // Draw tile coordinate label
             ctx.font = `${CONFIG.typography.tile_label_size}px ${CONFIG.typography.primary_font}`;
-            ctx.fillStyle = PALETTE.dimStroke;
+            ctx.fillStyle = CONFIG.colors.primary_dim;
             ctx.globalAlpha = CONFIG.visual.arena_label_alpha;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -94,7 +98,7 @@ class ClientArena {
             ctx.fillText(label, x, y + this.halfInnerSize - CONFIG.ui.tile_label_offset);
             
             // Draw crosshair aligned with grid intersections
-            ctx.strokeStyle = PALETTE.dimStroke;
+            ctx.strokeStyle = CONFIG.colors.primary_dim;
             ctx.lineWidth = CONFIG.visual.arena_grid_line_width;
             ctx.globalAlpha = CONFIG.visual.arena_grid_alpha;
             ctx.beginPath();
@@ -118,13 +122,13 @@ class ClientArena {
             }
             
             // Draw ammo pickup circle with dashed outline (like prototype)
-            ctx.strokeStyle = PALETTE.glowAccent;
+            ctx.strokeStyle = CONFIG.colors.accent_cyan;
             ctx.lineWidth = CONFIG.visual.arena_ammo_line_width;
             ctx.globalAlpha = CONFIG.visual.arena_ammo_alpha;
             ctx.setLineDash(CONFIG.patterns.ammo_dash);
             
             // Add subtle glow effect with dashed lines
-            ctx.shadowColor = PALETTE.glowAccent;
+            ctx.shadowColor = CONFIG.colors.accent_cyan;
             ctx.shadowBlur = CONFIG.visual.arena_ammo_shadow_blur;
             
             ctx.beginPath();

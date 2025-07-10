@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="password-managers" content="off">
+    <meta name="autofill" content="off">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self';">
+    <title>Blueprint Battle - Multiplayer (ES6 Modules)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style-vars.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
+    <style>
+        body, html {
+            font-family: var(--font-primary), sans-serif;
+            overflow: hidden;
+            background-color: var(--color-css-background);
+            margin: 0;
+            padding: 0;
+        }
+        canvas {
+            display: block;
+        }
+        
+        /* Module loading indicator */
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--color-primary);
+            font-family: var(--font-title);
+            font-size: 18px;
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        #loading.hidden {
+            display: none;
+        }
+        
+        .loading-spinner {
+            border: 2px solid var(--color-primary-dim);
+            border-top: 2px solid var(--color-accent-cyan);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body data-no-autofill data-password-managers="off" autocomplete="off">
+    <!-- Loading indicator -->
+    <div id="loading">
+        <div class="loading-spinner"></div>
+        <div>Loading Blueprint Battle...</div>
+        <div style="font-size: 14px; margin-top: 10px; color: var(--color-ui-text-dim);">
+            ES6 Modules System
+        </div>
+    </div>
+    
+    <!-- Game canvas -->
+    <canvas id="gameCanvas" data-no-autofill="true"></canvas>
+    
+    <!-- ES6 Module Entry Point -->
+    <script type="module">
+        // Hide loading indicator when modules load
+        import('./client/main.js').then(() => {
+            const loading = document.getElementById('loading');
+            if (loading) {
+                loading.classList.add('hidden');
+            }
+            console.log('✅ ES6 Modules loaded successfully');
+        }).catch(error => {
+            console.error('❌ Failed to load modules:', error);
+            const loading = document.getElementById('loading');
+            if (loading) {
+                loading.innerHTML = `
+                    <div style="color: var(--color-accent-error);">
+                        Failed to load game modules<br>
+                        <small>Check console for details</small>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

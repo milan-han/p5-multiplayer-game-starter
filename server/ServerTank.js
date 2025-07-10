@@ -1,8 +1,6 @@
-const yaml = require('js-yaml');
-const fs = require('fs');
+const configLoader = require('../shared/ConfigLoader');
 
-const configPath = './spec/blueprint-battle.yaml';
-const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
+const config = configLoader.getAll();
 
 class ServerTank {
   constructor(id, arena) {
@@ -11,6 +9,7 @@ class ServerTank {
     
     // Player info
     this.name = null; // Will be set when player joins with name
+    this.isBot = false; // Will be set to true for bot tanks
     
     // Grid-based positioning - start at center
     this.gridX = 0;
@@ -42,6 +41,8 @@ class ServerTank {
     this.killStreak = 0;
     this.respawnTime = 0;
     this.lastShotTime = 0;
+    this.spawnTime = Date.now(); // Track when tank was spawned
+    this.lastKilledBy = null; // Track who killed this tank for revenge system
     
     // Visual properties
     this.rgb = {
@@ -52,15 +53,23 @@ class ServerTank {
   }
 
   // Validate and attempt movement in a direction
-  tryMove(direction) {
+  tryMove(direction, inputSpeedMode = false, isContinuous = false) {
     if (!this.alive) return false;
     
     const now = Date.now();
-    const moveDelay = this.speedMode ?
-      config.player.move_cooldown_speed_mode * 16 : // Convert frames to ms
-      config.player.move_cooldown_normal_ms; // Normal movement delay from config
     
-    if (now - this.lastMoveTime < moveDelay) return false;
+    // Use input speed mode state for immediate responsiveness
+    const effectiveSpeedMode = inputSpeedMode || this.speedMode;
+    
+    const moveDelay = effectiveSpeedMode ?
+      config.player.move_cooldown_speed_mode * 16 : // Convert frames to ms (5*16=80ms)
+      config.player.move_cooldown_normal_ms; // Normal movement delay (50ms)
+    
+    // Allow slightly more lenient timing for continuous speed mode movement
+    const timingTolerance = isContinuous && effectiveSpeedMode ? 10 : 0; // 10ms tolerance
+    const actualDelay = Math.max(0, moveDelay - timingTolerance);
+    
+    if (now - this.lastMoveTime < actualDelay) return false;
     
     // Convert heading from degrees to radians for mathematical calculation
     // Tank heading: -90=North, 0=East, 90=South, 180=West
@@ -134,12 +143,23 @@ class ServerTank {
     return true;
   }
 
-  // Toggle speed mode
-  setSpeedMode(enabled) {
+  // Toggle speed mode with improved state management
+  setSpeedMode(enabled, immediate = false) {
     if (!this.alive) return;
     
+    const wasSpeedMode = this.speedMode;
     this.speedMode = enabled;
     this.shield = !enabled; // Shield disabled in speed mode
+    
+    // Reset movement timing when transitioning to speed mode for immediate responsiveness
+    if (!wasSpeedMode && enabled && immediate) {
+      this.lastMoveTime = Date.now() - config.player.move_cooldown_speed_mode * 16;
+    }
+    
+    // Reset movement timing when exiting speed mode to prevent stuck state
+    if (wasSpeedMode && !enabled) {
+      this.lastMoveTime = Date.now() - config.player.move_cooldown_normal_ms;
+    }
   }
 
   // Pick up ammo from current tile
@@ -198,6 +218,7 @@ class ServerTank {
     this.alive = false;
     this.killStreak = 0;
     this.respawnTime = Date.now() + config.combat.respawn_delay_ms; // 3 second respawn delay
+    this.lastKilledBy = bullet.ownerId; // Track who killed this tank for revenge system
     return true;
   }
 
@@ -205,6 +226,17 @@ class ServerTank {
   addKill() {
     if (!this.alive) return;
     this.killStreak++;
+  }
+  
+  // Calculate time alive in seconds
+  getTimeAlive() {
+    if (!this.alive) return 0;
+    return Math.floor((Date.now() - this.spawnTime) / 1000);
+  }
+  
+  // Get time alive at death (to be called when tank is killed)
+  getTimeAliveAtDeath() {
+    return Math.floor((Date.now() - this.spawnTime) / 1000);
   }
 
   // Set player name
@@ -240,10 +272,12 @@ class ServerTank {
     this.shield = true;
     this.speedMode = false;
     this.ammo = config.player.initial_ammo;
+    this.spawnTime = Date.now(); // Reset spawn time on respawn
+    this.lastKilledBy = null; // Clear revenge target on respawn
   }
 
   // Update tank state each frame
-  update() {
+  update(deltaTime = 16) {
     if (!this.alive) {
       // Check for respawn
       if (Date.now() >= this.respawnTime) {
@@ -253,27 +287,50 @@ class ServerTank {
       return;
     }
     
-    // Update position interpolation
-    const positionInterp = config.player.position_interp;
-    this.x += (this.targetX - this.x) * positionInterp;
-    this.y += (this.targetY - this.y) * positionInterp;
+    // Calculate frame-rate independent interpolation factors
+    const frameRateNormalizer = deltaTime / 16; // Normalize to 60Hz (16ms)
+    const positionInterp = config.player.position_interp * frameRateNormalizer;
+    const headingInterp = config.player.heading_interp * frameRateNormalizer;
     
-    // Update heading interpolation
-    const headingInterp = config.player.heading_interp;
+    // Update position interpolation with improved smoothing
+    const positionDeltaX = this.targetX - this.x;
+    const positionDeltaY = this.targetY - this.y;
+    
+    // Apply position interpolation with threshold to prevent jitter
+    const positionThreshold = 0.5;
+    if (Math.abs(positionDeltaX) > positionThreshold) {
+      this.x += positionDeltaX * Math.min(positionInterp, 1.0);
+    } else {
+      this.x = this.targetX; // Snap to target when very close
+    }
+    
+    if (Math.abs(positionDeltaY) > positionThreshold) {
+      this.y += positionDeltaY * Math.min(positionInterp, 1.0);
+    } else {
+      this.y = this.targetY; // Snap to target when very close
+    }
+    
+    // Update heading interpolation with improved smoothing
     let headingDiff = this.targetHeading - this.heading;
     
-    // Handle wrap-around
+    // Handle wrap-around more smoothly
     if (headingDiff > 180) headingDiff -= 360;
     if (headingDiff < -180) headingDiff += 360;
     
-    this.heading += headingDiff * headingInterp;
+    // Apply heading interpolation with threshold to prevent jitter
+    const headingThreshold = 1.0;
+    if (Math.abs(headingDiff) > headingThreshold) {
+      this.heading += headingDiff * Math.min(headingInterp, 1.0);
+    } else {
+      this.heading = this.targetHeading; // Snap to target when very close
+    }
     
     // Normalize heading
     this.heading = (this.heading + 360) % 360;
     
-    // Update speed mode cooldown
+    // Update speed mode cooldown (frame-rate independent)
     if (this.speedModeCooldown > 0) {
-      this.speedModeCooldown--;
+      this.speedModeCooldown = Math.max(0, this.speedModeCooldown - frameRateNormalizer);
     }
   }
 
@@ -282,6 +339,7 @@ class ServerTank {
     return {
       id: this.id,
       name: this.name,
+      isBot: this.isBot || false, // Include bot flag in state
       x: this.x,
       y: this.y,
       gridX: this.gridX,

@@ -375,7 +375,30 @@ class UIComponents {
             displayName = displayName.slice(0, -1);
         }
         
-        this.drawText(displayName, x + innerPadding, y, nameStyle);
+        // Calculate positions for icons
+        const nameX = x + innerPadding;
+        let textOffset = 0;
+        
+        // Draw crown icon for 1st place player
+        if (isTopPlayer) {
+            const crownSize = 16;
+            const crownX = nameX;
+            const crownY = y;
+            this.drawCrownIcon(crownX, crownY, crownSize);
+            textOffset += crownSize + 8; // Add space after crown
+        }
+        
+        // Draw shield icon if player has active shield
+        if (player.shield) {
+            const shieldSize = 14;
+            const shieldX = nameX + textOffset;
+            const shieldY = y;
+            this.drawShieldIcon(shieldX, shieldY, shieldSize);
+            textOffset += shieldSize + 6; // Add space after shield
+        }
+        
+        // Draw player name with offset for icons
+        this.drawText(displayName, nameX + textOffset, y, nameStyle);
         
         // Draw kill streak with monospace font
         this.drawText(player.killStreak.toString(), x + width - innerPadding, y, {
@@ -491,5 +514,121 @@ class UIComponents {
      */
     createBounds(x, y, width, height) {
         return { x, y, width, height };
+    }
+    
+    /**
+     * Draw neon crown icon for 1st place player
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {number} size - Size of the crown
+     */
+    drawCrownIcon(x, y, size = 16) {
+        this.ctx.save();
+        
+        // Crown glow effect
+        this.ctx.shadowColor = this.colors.glow;
+        this.ctx.shadowBlur = 12;
+        this.ctx.strokeStyle = this.colors.glow;
+        this.ctx.lineWidth = 2;
+        
+        // Draw crown shape
+        this.ctx.beginPath();
+        
+        // Crown base
+        const baseWidth = size * 0.8;
+        const baseHeight = size * 0.3;
+        const baseX = x - baseWidth / 2;
+        const baseY = y + size * 0.2;
+        
+        this.ctx.rect(baseX, baseY, baseWidth, baseHeight);
+        
+        // Crown spikes
+        const spikeWidth = baseWidth / 5;
+        const spikeHeight = size * 0.6;
+        
+        // Center spike (tallest)
+        this.ctx.moveTo(x, y - spikeHeight);
+        this.ctx.lineTo(x - spikeWidth / 2, baseY);
+        this.ctx.lineTo(x + spikeWidth / 2, baseY);
+        this.ctx.closePath();
+        
+        // Left spike
+        this.ctx.moveTo(x - spikeWidth * 1.5, y - spikeHeight * 0.7);
+        this.ctx.lineTo(x - spikeWidth * 2, baseY);
+        this.ctx.lineTo(x - spikeWidth, baseY);
+        this.ctx.closePath();
+        
+        // Right spike
+        this.ctx.moveTo(x + spikeWidth * 1.5, y - spikeHeight * 0.7);
+        this.ctx.lineTo(x + spikeWidth, baseY);
+        this.ctx.lineTo(x + spikeWidth * 2, baseY);
+        this.ctx.closePath();
+        
+        this.ctx.stroke();
+        
+        // Add crown jewels (small dots)
+        this.ctx.fillStyle = this.colors.glow;
+        
+        // Center jewel
+        this.ctx.beginPath();
+        this.ctx.arc(x, y - spikeHeight * 0.3, size * 0.08, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Side jewels
+        this.ctx.beginPath();
+        this.ctx.arc(x - spikeWidth * 1.5, y - spikeHeight * 0.4, size * 0.06, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        this.ctx.beginPath();
+        this.ctx.arc(x + spikeWidth * 1.5, y - spikeHeight * 0.4, size * 0.06, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        this.ctx.restore();
+    }
+    
+    /**
+     * Draw shield indicator for players with active shields
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {number} size - Size of the shield
+     */
+    drawShieldIcon(x, y, size = 14) {
+        this.ctx.save();
+        
+        // Shield glow effect
+        this.ctx.shadowColor = this.colors.primary;
+        this.ctx.shadowBlur = 8;
+        this.ctx.strokeStyle = this.colors.primary;
+        this.ctx.lineWidth = 1.5;
+        
+        // Draw shield shape
+        this.ctx.beginPath();
+        
+        // Shield outline (like a traditional shield)
+        const width = size * 0.7;
+        const height = size * 0.9;
+        const topRadius = width * 0.3;
+        
+        // Top rounded part
+        this.ctx.arc(x, y - height * 0.3, topRadius, 0, Math.PI, true);
+        
+        // Bottom point
+        this.ctx.lineTo(x - width / 2, y);
+        this.ctx.lineTo(x, y + height * 0.4);
+        this.ctx.lineTo(x + width / 2, y);
+        this.ctx.closePath();
+        
+        this.ctx.stroke();
+        
+        // Add shield pattern (cross)
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y - height * 0.2);
+        this.ctx.lineTo(x, y + height * 0.2);
+        this.ctx.moveTo(x - width * 0.3, y);
+        this.ctx.lineTo(x + width * 0.3, y);
+        this.ctx.stroke();
+        
+        this.ctx.restore();
     }
 }

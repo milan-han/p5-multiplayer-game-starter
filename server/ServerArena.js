@@ -1,8 +1,6 @@
-const yaml = require('js-yaml');
-const fs = require('fs');
+const configLoader = require('../shared/ConfigLoader');
 
-const configPath = './spec/blueprint-battle.yaml';
-const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
+const config = configLoader.getAll();
 
 class ServerArena {
   constructor() {

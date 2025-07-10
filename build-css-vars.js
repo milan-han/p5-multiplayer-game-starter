@@ -4,6 +4,10 @@
  * Build script to generate CSS custom properties from YAML configuration
  * This script reads the blueprint-battle.yaml configuration and generates
  * a style-vars.css file with CSS custom properties for styling values
+ * 
+ * Usage:
+ *   node build-css-vars.js          - Build once and exit
+ *   node build-css-vars.js --watch  - Build and watch for changes
  */
 
 const fs = require('fs');
@@ -239,5 +243,73 @@ function generateCSSVariables() {
     }
 }
 
-// Run the generator
-generateCSSVariables();
+// Parse command line arguments
+const args = process.argv.slice(2);
+const watchMode = args.includes('--watch') || args.includes('-w');
+
+function runBuild() {
+    console.log(`🔧 Building CSS variables...`);
+    const startTime = Date.now();
+    
+    try {
+        generateCSSVariables();
+        const buildTime = Date.now() - startTime;
+        console.log(`✅ Build completed in ${buildTime}ms`);
+        return true;
+    } catch (error) {
+        console.error('❌ Build failed:', error.message);
+        return false;
+    }
+}
+
+// Watch mode functionality
+function setupWatcher() {
+    console.log(`👀 Watching for changes to ${yamlPath}...`);
+    console.log(`📁 Output: ${outputPath}`);
+    console.log(`Press Ctrl+C to stop watching\n`);
+    
+    let buildTimeout;
+    
+    fs.watchFile(yamlPath, { interval: 1000 }, (curr, prev) => {
+        if (curr.mtime !== prev.mtime) {
+            console.log(`📝 YAML file changed at ${new Date().toLocaleTimeString()}`);
+            
+            // Debounce builds to avoid rapid rebuilds
+            clearTimeout(buildTimeout);
+            buildTimeout = setTimeout(() => {
+                runBuild();
+                console.log(`👀 Watching for changes...`);
+            }, 500);
+        }
+    });
+    
+    // Graceful shutdown
+    process.on('SIGINT', () => {
+        console.log('\n👋 Stopping watcher...');
+        fs.unwatchFile(yamlPath);
+        process.exit(0);
+    });
+    
+    process.on('SIGTERM', () => {
+        console.log('\n👋 Stopping watcher...');
+        fs.unwatchFile(yamlPath);
+        process.exit(0);
+    });
+}
+
+// Main execution
+if (watchMode) {
+    // Initial build
+    const initialBuild = runBuild();
+    
+    if (initialBuild) {
+        setupWatcher();
+    } else {
+        console.error('❌ Initial build failed. Fix errors before watching.');
+        process.exit(1);
+    }
+} else {
+    // Single build
+    const success = runBuild();
+    process.exit(success ? 0 : 1);
+}

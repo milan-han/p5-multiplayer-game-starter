@@ -130,9 +130,12 @@ class AnimationManager {
         
         this.ctx.save();
         
+        // Draw background grid first
+        this.drawGridLines();
+        
         // Batch arena drawing for performance
         this.setBatchState({
-            strokeStyle: PALETTE.dimStroke,
+            strokeStyle: CONFIG.colors.primary_dim,
             lineWidth: CONFIG.visual.arena_tile_line_width,
             globalAlpha: CONFIG.visual.arena_tile_alpha
         });
@@ -142,11 +145,11 @@ class AnimationManager {
         
         // Draw ammo spawns
         this.setBatchState({
-            strokeStyle: PALETTE.glowAccent,
+            strokeStyle: CONFIG.colors.accent_cyan,
             lineWidth: CONFIG.visual.arena_ammo_line_width,
             globalAlpha: CONFIG.visual.arena_ammo_alpha,
             shadowBlur: CONFIG.visual.arena_ammo_shadow_blur,
-            shadowColor: PALETTE.glowAccent
+            shadowColor: CONFIG.colors.accent_cyan
         });
         
         this.drawAmmoSpawns(arenaData.ammo);
@@ -286,8 +289,8 @@ class AnimationManager {
         
         // Set bullet glow
         this.setBatchState({
-            fillStyle: PALETTE.glowAccent,
-            shadowColor: PALETTE.glowAccent,
+            fillStyle: CONFIG.colors.accent_cyan,
+            shadowColor: CONFIG.colors.accent_cyan,
             shadowBlur: CONFIG.visual.bullet_glow_shadow_blur,
             globalAlpha: alpha
         });
@@ -299,7 +302,7 @@ class AnimationManager {
         
         // Draw inner bright core
         this.setBatchState({
-            fillStyle: PALETTE.white,
+            fillStyle: CONFIG.colors.white,
             globalAlpha: alpha * CONFIG.visual.bullet_inner_alpha,
             shadowBlur: CONFIG.visual.bullet_glow_shadow_blur * 0.5
         });
@@ -346,13 +349,13 @@ class AnimationManager {
     drawAmmoIndicator(x, y, animValues) {
         this.saveCanvasState();
         
-        // Force white color for ammo indicators (selected state)
-        this.setBatchState({
-            fillStyle: PALETTE.white,
-            shadowColor: PALETTE.white,
-            shadowBlur: CONFIG.visual.ammo_indicator_radius * animValues.glowIntensity,
-            globalAlpha: 1
-        });
+        // Force white color for ammo indicators (selected state) - reset all properties
+        this.ctx.fillStyle = CONFIG.colors.white;
+        this.ctx.shadowColor = CONFIG.colors.white;
+        this.ctx.shadowBlur = CONFIG.visual.ammo_indicator_radius * animValues.glowIntensity;
+        this.ctx.globalAlpha = 1;
+        this.ctx.strokeStyle = 'transparent';
+        this.ctx.lineWidth = 0;
         
         this.ctx.beginPath();
         this.ctx.arc(x, y, CONFIG.visual.ammo_indicator_radius, 0, Math.PI * 2);
@@ -379,8 +382,8 @@ class AnimationManager {
         
         // Shield visual properties
         this.setBatchState({
-            strokeStyle: PALETTE.glowAccent,
-            shadowColor: PALETTE.glowAccent,
+            strokeStyle: CONFIG.colors.accent_cyan,
+            shadowColor: CONFIG.colors.accent_cyan,
             shadowBlur: CONFIG.visual.shield_shadow_blur * animValues.glowIntensity,
             globalAlpha: animValues.shieldAlpha,
             lineWidth: CONFIG.player.shield.line_width
@@ -398,8 +401,8 @@ class AnimationManager {
     // Draw muzzle flash effect
     drawMuzzleFlash(x, y, animValues) {
         this.setBatchState({
-            fillStyle: PALETTE.glowAccent,
-            shadowColor: PALETTE.glowAccent,
+            fillStyle: CONFIG.colors.accent_cyan,
+            shadowColor: CONFIG.colors.accent_cyan,
             shadowBlur: CONFIG.visual.combat_effects.muzzle_flash_intensity * animValues.muzzleFlashAlpha,
             globalAlpha: animValues.muzzleFlashAlpha
         });
@@ -414,8 +417,8 @@ class AnimationManager {
     // Draw hit flash effect
     drawHitFlash(x, y, animValues) {
         this.setBatchState({
-            fillStyle: PALETTE.errorAccent,
-            shadowColor: PALETTE.errorAccent,
+            fillStyle: CONFIG.colors.accent_error,
+            shadowColor: CONFIG.colors.accent_error,
             shadowBlur: 15,
             globalAlpha: animValues.hitFlashAlpha
         });
@@ -430,8 +433,8 @@ class AnimationManager {
     // Draw death fade effect
     drawDeathFade(x, y, animValues) {
         this.setBatchState({
-            strokeStyle: PALETTE.errorAccent,
-            shadowColor: PALETTE.errorAccent,
+            strokeStyle: CONFIG.colors.accent_error,
+            shadowColor: CONFIG.colors.accent_error,
             shadowBlur: 10,
             lineWidth: 3,
             globalAlpha: animValues.deathFadeAlpha
@@ -464,6 +467,44 @@ class AnimationManager {
                 );
             }
         });
+        
+        this.ctx.stroke();
+        this.performanceStats.drawCalls++;
+    }
+    
+    // Draw grid lines for background - use tile size for grid that aligns with tile boundaries
+    drawGridLines() {
+        const bounds = camera.getBounds();
+        const margin = CONFIG.arena.tile_size;
+        const gridSize = CONFIG.arena.tile_size;
+        const offset = gridSize / 2; // Offset grid lines to go through middle of tiles
+        
+        // Use lighter color and appropriate alpha
+        this.setBatchState({
+            strokeStyle: CONFIG.colors.arena_grid,
+            globalAlpha: CONFIG.visual.arena_grid_alpha,
+            lineWidth: CONFIG.visual.arena_grid_line_width
+        });
+        
+        // Calculate visible grid range aligned to world coordinates with offset
+        const startX = Math.floor((bounds.minX - margin - offset) / gridSize) * gridSize + offset;
+        const endX = Math.ceil((bounds.maxX + margin - offset) / gridSize) * gridSize + offset;
+        const startY = Math.floor((bounds.minY - margin - offset) / gridSize) * gridSize + offset;
+        const endY = Math.ceil((bounds.maxY + margin - offset) / gridSize) * gridSize + offset;
+        
+        this.ctx.beginPath();
+        
+        // Draw vertical lines that extend beyond visible area to ensure intersection
+        for (let x = startX; x <= endX; x += gridSize) {
+            this.ctx.moveTo(x, bounds.minY - margin * 2);
+            this.ctx.lineTo(x, bounds.maxY + margin * 2);
+        }
+        
+        // Draw horizontal lines that extend beyond visible area to ensure intersection
+        for (let y = startY; y <= endY; y += gridSize) {
+            this.ctx.moveTo(bounds.minX - margin * 2, y);
+            this.ctx.lineTo(bounds.maxX + margin * 2, y);
+        }
         
         this.ctx.stroke();
         this.performanceStats.drawCalls++;
@@ -540,13 +581,15 @@ class AnimationManager {
         const size = CONFIG.background_pattern.cell_size;
         const dotRadius = CONFIG.background_pattern.dot_radius;
         
+        console.log('AnimationManager: Creating background pattern with cell_size:', size, 'dot_radius:', dotRadius);
+        
         patternCanvas.width = size;
         patternCanvas.height = size;
         
-        patternCtx.fillStyle = PALETTE.base;
+        patternCtx.fillStyle = CONFIG.colors.base;
         patternCtx.fillRect(0, 0, size, size);
         
-        patternCtx.fillStyle = PALETTE.dimStroke;
+        patternCtx.fillStyle = CONFIG.colors.primary_dim;
         patternCtx.globalAlpha = CONFIG.background_pattern.dot_alpha;
         patternCtx.beginPath();
         patternCtx.arc(size / 2, size / 2, dotRadius, 0, Math.PI * 2);

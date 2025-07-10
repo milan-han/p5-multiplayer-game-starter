@@ -99,6 +99,8 @@ function createBackgroundPattern() {
     const size = CONFIG.background_pattern.cell_size;
     const dotRadius = CONFIG.background_pattern.dot_radius;
     
+    console.log('game.js: Creating background pattern with cell_size:', size, 'dot_radius:', dotRadius);
+    
     patternCanvas.width = size;
     patternCanvas.height = size;
     
@@ -146,6 +148,7 @@ function init() {
         resizeCanvas();
         
         // Initialize Phase 10 animation system
+        // @ts-ignore: DeltaTime class is loaded via script tag in index.html
         deltaTime = new DeltaTime();
         interpolationBuffer = new InterpolationBuffer(deltaTime);
         
@@ -155,7 +158,7 @@ function init() {
         backgroundPattern = createBackgroundPattern();
         
         // Create socket connection (but don't join game yet)
-        socket = io();
+        socket = io(`http://localhost:${CONFIG.server.port}`);
         setupSocketEvents();
         
         // Initialize network manager with enhanced prediction
@@ -237,10 +240,11 @@ function setupSocketEvents() {
             // Handle death effects
             camera.addShake(CONFIG.visual.combat_effects.death_shake_magnitude);
             
-            // Show death screen with UI manager
+            // Show death screen with UI manager including death statistics
             uiManager.showDeath({
                 deathTime: Date.now(),
-                respawnTime: Date.now() + CONFIG.combat.respawn_delay_ms
+                respawnTime: Date.now() + CONFIG.combat.respawn_delay_ms,
+                stats: data.victimStats || { killStreak: 0, timeAlive: 0 }
             });
         }
         
@@ -274,6 +278,13 @@ function setupSocketEvents() {
         if (data.playerId === myPlayerId) {
             // Handle kill streak update
             camera.addShake(CONFIG.camera.shake_magnitude);
+        }
+    });
+    
+    socket.on('revengeKill', (data) => {
+        if (data.avenger === myPlayerId) {
+            // Show revenge notification popup
+            uiManager.showRevengeNotification();
         }
     });
     
@@ -320,16 +331,18 @@ function setupInputHandlers() {
 
         switch (key) {
             case 'w':
-                if (!keys.shift) {
-                    // Phase 10: Use network manager for enhanced prediction
-                    networkManager.sendInput('playerMove', { direction: 'forward' });
-                }
+                // Send movement input regardless of speed mode - let server handle timing
+                networkManager.sendInput('playerMove', { 
+                    direction: 'forward',
+                    speedMode: keys.shift // Include current speed mode state
+                });
                 break;
             case 's':
-                if (!keys.shift) {
-                    // Phase 10: Use network manager for enhanced prediction
-                    networkManager.sendInput('playerMove', { direction: 'backward' });
-                }
+                // Send movement input regardless of speed mode - let server handle timing
+                networkManager.sendInput('playerMove', { 
+                    direction: 'backward',
+                    speedMode: keys.shift // Include current speed mode state
+                });
                 break;
             case 'a':
                 // Phase 10: Use network manager for enhanced prediction
@@ -347,8 +360,14 @@ function setupInputHandlers() {
                 camera.addShake(CONFIG.camera.shake_magnitude * CONFIG.camera.shake_multiplier);
                 break;
             case 'shift':
-                // Phase 10: Use network manager for enhanced prediction
-                networkManager.sendInput('speedModeToggle', { enabled: true });
+                // Enhanced speed mode toggle with immediate state update
+                keys.shift = true; // Update local state immediately
+                networkManager.sendInput('speedModeToggle', { 
+                    enabled: true, 
+                    immediate: true // Flag for immediate activation
+                });
+                // Reset speed mode timing to prevent initial delay
+                lastSpeedModeMove = 0;
                 break;
         }
     });
@@ -360,38 +379,63 @@ function setupInputHandlers() {
         }
 
         if (key === 'shift') {
-            // Phase 10: Use network manager for enhanced prediction
-            networkManager.sendInput('speedModeToggle', { enabled: false });
+            // Enhanced speed mode toggle with immediate state update
+            keys.shift = false; // Update local state immediately
+            networkManager.sendInput('speedModeToggle', { 
+                enabled: false, 
+                immediate: true // Flag for immediate deactivation
+            });
+            // Reset speed mode input buffer
+            speedModeInputBuffer = { w: false, s: false };
         }
     });
     
     window.addEventListener('resize', resizeCanvas);
 }
 
-// Handle continuous movement in speed mode
+// Enhanced speed mode handling - continuous movement while keys are held
 let lastSpeedModeMove = 0;
+let speedModeInputBuffer = { w: false, s: false };
+
 function handleSpeedMode() {
-    if (keys.shift) {
-        const now = Date.now();
-        const speedModeDelay = CONFIG.player.move_cooldown_speed_mode * CONFIG.ui.frame_to_ms; // Convert frames to ms
+    if (!keys.shift) {
+        // Reset buffer when not in speed mode
+        speedModeInputBuffer = { w: false, s: false };
+        return;
+    }
+    
+    const now = Date.now();
+    const speedModeDelay = CONFIG.player.move_cooldown_speed_mode * CONFIG.ui.frame_to_ms; // Convert frames to ms
+    
+    if (now - lastSpeedModeMove >= speedModeDelay) {
+        let moveDirection = null;
         
-        if (now - lastSpeedModeMove >= speedModeDelay) {
-            let moved = false;
-            if (keys.w) {
-                // Phase 10: Use network manager for enhanced prediction
-                networkManager.sendInput('playerMove', { direction: 'forward' });
-                moved = true;
-            } else if (keys.s) {
-                // Phase 10: Use network manager for enhanced prediction
-                networkManager.sendInput('playerMove', { direction: 'backward' });
-                moved = true;
-            }
-            
-            if (moved) {
-                lastSpeedModeMove = now;
-            }
+        // Prioritize forward movement, then backward
+        if (keys.w && !speedModeInputBuffer.w) {
+            moveDirection = 'forward';
+            speedModeInputBuffer.w = true;
+        } else if (keys.s && !speedModeInputBuffer.s) {
+            moveDirection = 'backward';
+            speedModeInputBuffer.s = true;
+        } else if (keys.w) {
+            moveDirection = 'forward';
+        } else if (keys.s) {
+            moveDirection = 'backward';
+        }
+        
+        if (moveDirection) {
+            networkManager.sendInput('playerMove', { 
+                direction: moveDirection,
+                speedMode: true,
+                continuous: true // Flag for continuous movement
+            });
+            lastSpeedModeMove = now;
         }
     }
+    
+    // Reset buffer flags when keys are released
+    if (!keys.w) speedModeInputBuffer.w = false;
+    if (!keys.s) speedModeInputBuffer.s = false;
 }
 
 
@@ -416,7 +460,7 @@ function clearEntityEvents() {
 // Main game loop - Phase 10: Complete rewrite with animation system
 function gameLoop() {
     // Phase 10: Update delta time for frame-rate independence
-    const dt = deltaTime.update();
+    deltaTime.update();
     
     // Check if UI manager is handling login/UI state
     if (uiManager && uiManager.isLoginVisible()) {
@@ -488,6 +532,7 @@ async function loadConfig() {
         throw new Error(`HTTP ${response.status}`);
     }
     CONFIG = await response.json();
+    console.log('CONFIG loaded: background_pattern.cell_size =', CONFIG.background_pattern.cell_size);
 }
 
 // Wait for configuration before bootstrapping the client

@@ -6,53 +6,28 @@ Task Formula:
 ## 🛠️ In Progress
 
 ## ⏭️ Next Up
+FIX NOW:
+
+│ > @CLAUDE.md @spec/blueprint-battle.yaml The shiled turn off       │
+│   animation is too slow, changing it's value in                    │
+│   @spec/blueprint-battle.yaml doesn't seam to affect anything.     │
+│   Also, the die/ respawn screen does not show stats, THere is no            
+│   notification revenge pop up either, even though both of these    │
+│   have been coded in. Please hard think a plan to fix both of      │
+│   these issues and diagnose.and the log in screen backround        │
+│   should not be black, instead it should be an overlay over a      │
+│   zooemd out view of the current map. Also, Add a blinking low opacity 1s animation to the player when he respawns so he can't be killed right when respawning. No bullets should be able to hit him and he should not be able to shoot. 
+User should not spawn into map until he hits play on the log in screen.
+
+Already implimented, but have issues:
+- respawn page should show kill streak and time alive.
+- Have a pop up in bottom left say when you kill someone that killed you just now: revenge
+- The player in 1st place on leaderboard should load an extra shield opposite of his current shiled, so in front and behind.
 
 
-
-
-### Phase 9: Bot simulation
-
-Add fake bots to simulate users in map. because the game already runs on an authoritative server loop with discrete, grid-based movement, adding computer-controlled “players” is quite straightforward. In practice you create additional Player/ServerTank instances that are driven by an AI routine instead of a network socket.
-Below is a high-level plan that keeps the design consistent with the rest of the codebase and produces opponents that feel human:
-Bot wiring (no network socket)
-In GameManager.js add a spawnBot(id) helper that
-instantiates a ServerTank/Player object,
-stores it in the same collections as real players,
-marks it with isBot: true.
-Skip the socket field; instead expose a botTick() method that the main game loop calls every 16 ms.
-Behaviour tree or finite-state machine
-A simple FSM is usually enough:
-States: “Roam for ammo”, “Has ammo – hunt target”, “Evade (low HP)”, “Respawn cooldown”.
-Transitions driven by line-of-sight checks, kill-event callbacks, and a small amount of randomness to avoid predictability.
-Path-finding on the grid
-Use A* over the existing walkable-tile map created by ServerArena.
-Cache the path but re-plan every few steps so bots react to moving targets.
-Limit look-ahead depth and add 5-10 % random deviation so movement feels imperfect.
-Aiming & shooting
-When a bot has ammo and a target is within, say, 6 tiles:
-Compute the 90°/180° turn needed to face the target.
-Insert a short reaction delay (100-250 ms) before pressing “shoot”.
-If the target’s shield is facing the bot, either flank (choose a side path) or wait until the opponent rotates away.
-Shield logic & speed mode
-Mirror the same rules as a human: bot keeps its shield forward when closing distance; drops it (speed mode) only while escaping or dashing for ammo.
-Randomise the duration of speed bursts to avoid robotic timing.
-Difficulty sliders
-Expose YAML config for:
-bot_accuracy (probability the bot fires on perfect heading)
-reaction_time_ms range
-path_replan_interval
-max_bots / bot_spawn_interval
-Client-side representation
-Nothing special—on clients bots appear via the same gameState broadcast. To players they are “just another tank”.
-Scaling & performance
-Because movement and collisions are already handled server-side, each bot costs ~ the same as a real player. Benchmark: start with 5–10 bots; measure server loop Δt and adjust.
-Optional polish for “human feel”
-Insert occasional aim mistakes (±1 tile) and micro-hesitations before turning.
-Give each bot a unique colour/name.
-Maintain a per-bot “awareness” radius to simulate limited vision.
-With these additions you can instantly fill empty lobbies or offer an offline practice mode while preserving the competitive mechanics defined in CLAUDE.md and BlueprintBattleRules.md.
-
-
+Fix Later
+- Slow down speed mode.
+- Make npc logic physicaly possible (they have speedy diagonal movement that is unnatural and hard.
 
 
 

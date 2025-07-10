@@ -6,7 +6,10 @@
   "scripts": {
     "start": "nodemon server/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:css": "node build-css-vars.js"
+    "build:css": "node build-css-vars.js",
+    "build:css:watch": "node build-css-vars.js --watch",
+    "dev": "npm run build:css && npm run start",
+    "dev:watch": "npm run build:css && npm run build:css:watch"
   },
   "author": "lg",
   "license": "ISC",

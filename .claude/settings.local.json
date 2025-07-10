@@ -39,7 +39,13 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(npm run build:css:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(node:*)",
+      "Bash(grep:*)",
+      "Bash(kill:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(timeout 5s npm run build:css:watch)"
     ],
     "deny": [
       "Bash(dd:*)",

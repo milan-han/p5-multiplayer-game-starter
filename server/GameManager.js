@@ -1,12 +1,11 @@
-const yaml = require('js-yaml');
-const fs = require('fs');
+const configLoader = require('../shared/ConfigLoader');
 const ServerTank = require('./ServerTank');
 const ServerBullet = require('./ServerBullet');
 const ServerArena = require('./ServerArena');
+const ServerBot = require('./ServerBot');
 
 // Load game configuration
-const configPath = './spec/blueprint-battle.yaml';
-const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
+const config = configLoader.getAll();
 
 class GameManager {
   constructor(io) {
@@ -15,6 +14,14 @@ class GameManager {
     this.tanks = new Map();
     this.bullets = [];
     this.nextBulletId = 1;
+    
+    // Bot management
+    this.bots = new Map();        // botId -> ServerBot instance
+    this.nextBotId = 1;
+    this.lastBotSpawnTime = 0;
+    this.botSpawnInterval = config.bots.spawn_interval_ms;
+    this.maxBots = config.bots.max_bots;
+    this.minBots = config.bots.min_bots;
     
     // Track player order for color assignment
     this.playerOrder = [];
@@ -29,10 +36,61 @@ class GameManager {
       timestamp: Date.now()
     };
     
-    // 60Hz game loop (16.67ms intervals)
-    this.gameLoop = setInterval(() => this.updateGame(), config.server.game_loop_interval_ms);
+    // High-resolution timing for precise 60Hz game loop
+    this.targetFPS = 60;
+    this.targetFrameTime = 1000000000n / BigInt(this.targetFPS); // nanoseconds per frame
+    this.lastFrameTime = process.hrtime.bigint();
+    this.isRunning = true;
+    this.frameCount = 0;
+    this.lastSecond = Date.now();
+    this.actualFPS = 0;
+    
+    // Start high-resolution game loop
+    this.startHighResolutionLoop();
     
     this.setupSocketEvents();
+  }
+
+  startHighResolutionLoop() {
+    const loop = () => {
+      if (!this.isRunning) return;
+      
+      const currentTime = process.hrtime.bigint();
+      const deltaTime = currentTime - this.lastFrameTime;
+      
+      // Only update if enough time has passed (60Hz = ~16.67ms)
+      if (deltaTime >= this.targetFrameTime) {
+        // Calculate actual frame time in milliseconds for physics
+        const frameTimeMs = Number(deltaTime) / 1000000;
+        
+        // Update game state
+        this.updateGame(frameTimeMs);
+        
+        // Update timing
+        this.lastFrameTime = currentTime;
+        this.frameCount++;
+        
+        // Calculate actual FPS every second
+        const now = Date.now();
+        if (now - this.lastSecond >= 1000) {
+          this.actualFPS = this.frameCount;
+          this.frameCount = 0;
+          this.lastSecond = now;
+          
+          // Log performance every 10 seconds
+          if (this.actualFPS < 58) {
+            console.warn(`⚠️  Server FPS: ${this.actualFPS}/60 (performance warning)`);
+          }
+        }
+      }
+      
+      // Schedule next frame with minimal delay
+      setImmediate(loop);
+    };
+    
+    // Start the loop
+    loop();
+    console.log(`🚀 High-resolution game loop started (target: ${this.targetFPS}Hz)`);
   }
 
   setupSocketEvents() {
@@ -108,7 +166,11 @@ class GameManager {
     // Phase 10: Track input sequence for acknowledgment
     this.updateInputSequence(playerId, data);
     
-    tank.tryMove(data.direction);
+    // Enhanced movement with speed mode parameters
+    const inputSpeedMode = data.speedMode || false;
+    const isContinuous = data.continuous || false;
+    
+    tank.tryMove(data.direction, inputSpeedMode, isContinuous);
   }
 
   handlePlayerRotate(playerId, data) {
@@ -150,7 +212,10 @@ class GameManager {
     // Phase 10: Track input sequence for acknowledgment
     this.updateInputSequence(playerId, data);
     
-    tank.setSpeedMode(data.enabled);
+    // Enhanced speed mode toggle with immediate activation
+    const immediate = data.immediate !== undefined ? data.immediate : true;
+    
+    tank.setSpeedMode(data.enabled, immediate);
   }
 
   handlePlayerJoin(playerId, data) {
@@ -173,17 +238,25 @@ class GameManager {
     const bulletId = this.nextBulletId++;
     const bullet = new ServerBullet(bulletId, tank, this.arena);
     this.bullets.push(bullet);
+    
+    // Enhanced debugging for bot bullets
+    const shooterType = tank.isBot ? "BOT" : "HUMAN";
+    console.log(`${shooterType} ${tank.id} created bullet ${bulletId} at (${Math.round(tank.x)}, ${Math.round(tank.y)}) heading ${Math.round(tank.heading)}°`);
+    console.log(`Total bullets in game: ${this.bullets.length}`);
   }
 
-  updateGame() {
-    this.updateTanks();
-    this.updateBullets();
-    this.updateArena();
-    this.checkCollisions();
+  updateGame(frameTimeMs = 16.67) {
+    // Pass frame time for frame-rate independent calculations
+    this.updateTanks(frameTimeMs);
+    this.updateBots(frameTimeMs);
+    this.updateBullets(frameTimeMs);
+    this.updateArena(frameTimeMs);
+    this.checkCollisions(frameTimeMs);
+    this.manageBotSpawning(frameTimeMs);
     this.broadcastGameState();
   }
 
-  updateTanks() {
+  updateTanks(frameTimeMs) {
     for (const tank of this.tanks.values()) {
       const updateResult = tank.update();
       
@@ -198,7 +271,13 @@ class GameManager {
     }
   }
 
-  updateBullets() {
+  updateBots(frameTimeMs) {
+    for (const bot of this.bots.values()) {
+      bot.update(this.tanks, this.bullets);
+    }
+  }
+
+  updateBullets(frameTimeMs) {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
       bullet.update();
@@ -210,11 +289,11 @@ class GameManager {
     }
   }
 
-  updateArena() {
+  updateArena(frameTimeMs) {
     this.arena.update();
   }
 
-  checkCollisions() {
+  checkCollisions(frameTimeMs) {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
       const hitTank = bullet.checkAllTankCollisions(this.tanks);
@@ -229,11 +308,15 @@ class GameManager {
           if (shooterTank && shooterTank.alive) {
             shooterTank.addKill();
             
-            // Emit kill events
+            // Emit kill events with death statistics
             this.io.emit('playerKilled', {
               killer: bullet.ownerId,
               victim: hitTank.id,
-              timestamp: Date.now()
+              timestamp: Date.now(),
+              victimStats: {
+                killStreak: hitTank.killStreak,
+                timeAlive: hitTank.getTimeAliveAtDeath()
+              }
             });
             
             this.io.emit('killStreakUpdate', {
@@ -241,6 +324,16 @@ class GameManager {
               streak: shooterTank.killStreak,
               timestamp: Date.now()
             });
+            
+            // Check for revenge scenario
+            if (shooterTank.lastKilledBy === hitTank.id) {
+              // This is revenge! The shooter was previously killed by the victim
+              this.io.emit('revengeKill', {
+                avenger: bullet.ownerId,
+                target: hitTank.id,
+                timestamp: Date.now()
+              });
+            }
           }
         }
         
@@ -269,9 +362,93 @@ class GameManager {
     this.io.emit('gameState', this.gameState);
   }
 
+  manageBotSpawning(frameTimeMs) {
+    const now = Date.now();
+    const humanPlayerCount = this.getHumanPlayerCount();
+    const currentBotCount = this.bots.size;
+    
+    // Don't spawn bots if no human players
+    if (humanPlayerCount === 0) {
+      return;
+    }
+    
+    // Check if we should spawn a bot
+    const shouldSpawnBot = 
+      currentBotCount < this.maxBots &&
+      currentBotCount < Math.max(this.minBots, humanPlayerCount) &&
+      (now - this.lastBotSpawnTime) >= this.botSpawnInterval;
+    
+    if (shouldSpawnBot) {
+      this.spawnBot();
+    }
+    
+    // Remove bots if too many (in case config changed)
+    while (this.bots.size > this.maxBots) {
+      const firstBotId = this.bots.keys().next().value;
+      this.removeBot(firstBotId);
+    }
+  }
+
+  spawnBot() {
+    const botId = `bot_${this.nextBotId++}`;
+    const tank = new ServerTank(botId, this.arena);
+    const bot = new ServerBot(botId, tank, this.arena, this);
+    
+    // Configure bot appearance
+    tank.setName(this.generateBotName());
+    tank.setColor(this.getBotColor());
+    
+    // Add to collections
+    this.tanks.set(botId, tank);
+    this.bots.set(botId, bot);
+    
+    this.lastBotSpawnTime = Date.now();
+    console.log(`Spawned bot: ${botId} (Total bots: ${this.bots.size})`);
+  }
+
+  removeBot(botId) {
+    const bot = this.bots.get(botId);
+    if (bot) {
+      this.tanks.delete(botId);
+      this.bots.delete(botId);
+      console.log(`Removed bot: ${botId} (Total bots: ${this.bots.size})`);
+    }
+  }
+
+  getHumanPlayerCount() {
+    let count = 0;
+    for (const tank of this.tanks.values()) {
+      if (!tank.isBot) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  generateBotName() {
+    const prefixes = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Theta', 'Omega'];
+    const suffixes = ['Unit', 'Drone', 'Bot', 'AI', 'System', 'Core', 'Node', 'Proto'];
+    
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+    const number = Math.floor(Math.random() * 999) + 1;
+    
+    return `${prefix}-${suffix}-${number.toString().padStart(3, '0')}`;
+  }
+
+  getBotColor() {
+    const availableColors = config.colors.player_colors.filter(color => color !== '#FF5C5C'); // Avoid red
+    const colorIndex = (this.nextBotId - 1) % availableColors.length;
+    return availableColors[colorIndex];
+  }
+
   shutdown() {
-    if (this.gameLoop) {
-      clearInterval(this.gameLoop);
+    console.log('🛑 Shutting down game loop...');
+    this.isRunning = false;
+    
+    // Log final performance stats
+    if (this.actualFPS > 0) {
+      console.log(`📊 Final server performance: ${this.actualFPS}Hz (target: ${this.targetFPS}Hz)`);
     }
   }
 }

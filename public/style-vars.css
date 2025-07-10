@@ -101,8 +101,8 @@
 
     /* Animation System */
     --anim-interpolation-delay-ms: 33ms;
-    --anim-interpolation-buffer-size: 10;
-    --anim-delta-time-smoothing: 0.1;
+    --anim-interpolation-buffer-size: 12;
+    --anim-delta-time-smoothing: 0.15;
     --anim-ease-out-cubic: 0.25;
     --anim-ease-in-out-quad: 0.5;
     --anim-ease-linear: 1;
@@ -111,9 +111,9 @@
     --anim-hit-flash-duration-ms: 133ms;
     --anim-death-fade-duration-ms: 500ms;
     --anim-respawn-flash-duration-ms: 300ms;
-    --anim-position-lerp-factor: 0.8;
-    --anim-rotation-lerp-factor: 0.15;
-    --anim-camera-lerp-factor: 0.1;
+    --anim-position-lerp-factor: 0.3;
+    --anim-rotation-lerp-factor: 0.1;
+    --anim-camera-lerp-factor: 0.08;
     --anim-alpha-fade-rate: 0.02;
     --anim-glow-pulse-speed: 0.005;
     --anim-shake-decay-rate: 0.9;
@@ -136,13 +136,13 @@
     --visual-bullet-trail-alpha: 0.6;
     --visual-bullet-fade-threshold: 0.3;
     --visual-bullet-visibility-margin: 4;
-    --visual-arena-tile-alpha: 0.25;
-    --visual-arena-tile-line-width: 1;
+    --visual-arena-tile-alpha: 0.8;
+    --visual-arena-tile-line-width: 1.5;
     --visual-arena-ammo-alpha: 0.4;
     --visual-arena-ammo-line-width: 1.5;
-    --visual-arena-grid-alpha: 0.4;
+    --visual-arena-grid-alpha: 0.5;
     --visual-arena-grid-line-width: 1;
-    --visual-arena-label-alpha: 0.25;
+    --visual-arena-label-alpha: 0.7;
     --visual-arena-ammo-radius: 12;
     --visual-arena-ammo-shadow-blur: 8;
     --visual-shield-shadow-blur: 10;

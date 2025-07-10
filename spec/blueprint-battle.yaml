@@ -8,8 +8,8 @@ server:
 # Bot configuration for AI players
 bots:
   # Spawning and scaling
-  max_bots: 10                    # Maximum simultaneous bots
-  min_bots: 8                    # Minimum bots when humans present
+  max_bots: 6                    # Maximum simultaneous bots
+  min_bots: 3                    # Minimum bots when humans present
   spawn_interval_ms: 15000       # Time between bot spawns
   auto_scale_difficulty: true    # Increase difficulty with player skill
   
@@ -22,10 +22,10 @@ bots:
     
   # Movement behavior
   movement:
-    path_replan_interval: 8      # Frames between pathfinding updates
-    stuck_threshold_frames: 40   # Frames to detect stuck condition
-    random_movement_chance: 0.12 # Probability of random movement
-    speed_mode_probability: 0.3  # Chance to use speed mode when fleeing
+    path_replan_interval: 24     # Frames between pathfinding updates - increased for smoother movement
+    stuck_threshold_frames: 60   # Frames to detect stuck condition - increased for more patience
+    random_movement_chance: 0.08 # Probability of random movement - reduced for more focused movement
+    speed_mode_probability: 0.25 # Chance to use speed mode when fleeing - slightly reduced
     
   # Combat behavior
   combat:
@@ -50,11 +50,11 @@ arena:
   ammo_respawn_delay_ms: 15000 # Time before ammo respawns after pickup (15 seconds)
 
 player:
-  move_cooldown_speed_mode: 10   # Frames between auto‐steps while sprinting (Shift held)
-  move_cooldown_normal_ms: 100  # Minimum milliseconds between normal moves
-  shield_alpha_rate: 0.1        # Speed at which shield fades in/out each frame
-  heading_interp: 0.15          # Interpolation factor for tank rotation smoothing
-  position_interp: 0.8          # Interpolation factor for tank position smoothing
+  move_cooldown_speed_mode: 5    # Frames between auto‐steps while sprinting (Shift held) - reduced for smoother movement
+  move_cooldown_normal_ms: 50   # Minimum milliseconds between normal moves - reduced for better responsiveness
+  shield_alpha_rate: 0.02        # Speed at which shield fades in/out each frame
+  heading_interp: 0.1           # Interpolation factor for tank rotation smoothing - reduced for smoother rotation
+  position_interp: 0.3          # Interpolation factor for tank position smoothing - reduced for smoother movement
   rotation_step_deg: 90         # Degrees rotated per ArrowLeft/ArrowRight press
   initial_ammo: 1               # Starting ammo count for new players
   max_ammo: 1                   # Maximum ammo a player can carry
@@ -83,7 +83,7 @@ combat:
   push_distance: 5              # Distance to push bullet away from shield after reflection
 
 camera:
-  lerp_factor: 0.1         # Interpolation factor for camera position/rotation
+  lerp_factor: 0.08        # Interpolation factor for camera position/rotation - reduced for smoother following
   shake_magnitude: 15      # Initial shake offset applied on shot
   shake_decay: 0.9         # Per-frame decay multiplier for shake magnitude
   visibility_margin: 100   # Extra margin for visibility culling
@@ -107,13 +107,13 @@ visual:
   bullet_visibility_margin: 4 # Visibility margin multiplier for bullet radius
   
   # Arena rendering
-  arena_tile_alpha: 0.25      # Alpha for arena tile outlines
-  arena_tile_line_width: 1    # Line width for arena tiles
+  arena_tile_alpha: 0.8       # Alpha for arena tile outlines - increased for better visibility
+  arena_tile_line_width: 1.5    # Line width for arena tiles
   arena_ammo_alpha: 0.4       # Alpha for ammo spawn indicators - increased visibility
   arena_ammo_line_width: 1.5  # Line width for ammo spawn circles
-  arena_grid_alpha: 0.4       # Alpha for background grid lines - increased to match prototype
+  arena_grid_alpha: 0.5       # Alpha for background grid lines - increased for crisp grid
   arena_grid_line_width: 1    # Line width for background grid lines
-  arena_label_alpha: 0.25     # Alpha for tile coordinate labels
+  arena_label_alpha: 0.7      # Alpha for tile coordinate labels - increased for readability
   arena_ammo_radius: 12       # Radius of ammo pickup circles
   arena_ammo_shadow_blur: 8   # Shadow blur for ammo glow effect
   
@@ -229,8 +229,8 @@ ui:
   anim:
     # Interpolation and timing
     interpolation_delay_ms: 33         # Render delay behind server (2 ticks at 60Hz)
-    interpolation_buffer_size: 10      # Number of state snapshots to store
-    delta_time_smoothing: 0.1          # Smoothing factor for delta time calculation
+    interpolation_buffer_size: 12      # Number of state snapshots to store - increased for smoother interpolation
+    delta_time_smoothing: 0.15         # Smoothing factor for delta time calculation - increased for better frame rate stability
     
     # Easing functions and curves
     ease_out_cubic: 0.25              # Cubic easing factor for smooth transitions
@@ -245,9 +245,9 @@ ui:
     respawn_flash_duration_ms: 300    # Respawn flash duration
     
     # Position and rotation interpolation
-    position_lerp_factor: 0.8         # Position interpolation speed
-    rotation_lerp_factor: 0.15        # Rotation interpolation speed
-    camera_lerp_factor: 0.1           # Camera follow interpolation speed
+    position_lerp_factor: 0.3         # Position interpolation speed - reduced for smoother movement
+    rotation_lerp_factor: 0.1         # Rotation interpolation speed - reduced for smoother rotation
+    camera_lerp_factor: 0.08          # Camera follow interpolation speed - reduced for smoother following
     
     # Visual effect parameters
     alpha_fade_rate: 0.02             # Alpha fade rate per frame (60Hz)

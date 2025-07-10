@@ -25,6 +25,13 @@ class UIManager {
             avgRenderTime: 0
         };
         
+        // Revenge notification state
+        this.revengeNotification = {
+            active: false,
+            startTime: 0,
+            duration: 3000
+        };
+        
         // Initialize background pattern
         this.createBackgroundPattern();
         
@@ -213,6 +220,11 @@ class UIManager {
             case 'connecting':
                 this.renderConnectingOverlay();
                 break;
+        }
+        
+        // Render revenge notification popup (overlays everything)
+        if (this.revengeNotification.active) {
+            this.renderRevengeNotification();
         }
         
         // Update performance stats
@@ -463,7 +475,7 @@ class UIManager {
         this.ctx.globalAlpha = 1;
         
         // Draw death message
-        this.uiComponents.drawText('YOU DIED', center.x, center.y - 80, {
+        this.uiComponents.drawText('YOU DIED', center.x, center.y - 120, {
             type: 'primary',
             size: this.config.ui.death_screen.message_font_size,
             color: this.uiComponents.colors.error,
@@ -472,6 +484,35 @@ class UIManager {
             glow: true,
             glowIntensity: 15
         });
+        
+        // Draw death statistics
+        if (deathData.stats) {
+            const stats = deathData.stats;
+            const statsY = center.y - 80;
+            
+            // Draw kill streak
+            this.uiComponents.drawText(`Kill Streak: ${stats.killStreak}`, center.x, statsY, {
+                type: 'primary',
+                size: this.config.ui.death_screen.message_font_size - 6,
+                color: this.uiComponents.colors.primary,
+                align: 'center',
+                baseline: 'middle',
+                glow: true,
+                glowIntensity: 8
+            });
+            
+            // Draw time alive
+            const timeAliveText = stats.timeAlive > 0 ? `${stats.timeAlive}s` : '0s';
+            this.uiComponents.drawText(`Time Alive: ${timeAliveText}`, center.x, statsY + 25, {
+                type: 'primary',
+                size: this.config.ui.death_screen.message_font_size - 6,
+                color: this.uiComponents.colors.primary,
+                align: 'center',
+                baseline: 'middle',
+                glow: true,
+                glowIntensity: 8
+            });
+        }
         
         // Draw countdown or respawn message
         if (deathData.secondsLeft > 0) {
@@ -522,6 +563,73 @@ class UIManager {
                 () => this.handleRespawnButton()
             );
         }
+    }
+    
+    /**
+     * Render revenge notification popup
+     */
+    renderRevengeNotification() {
+        const now = Date.now();
+        const elapsed = now - this.revengeNotification.startTime;
+        
+        // Check if notification should expire
+        if (elapsed >= this.revengeNotification.duration) {
+            this.revengeNotification.active = false;
+            return;
+        }
+        
+        // Calculate fade animation
+        const fadeInDuration = 300; // 300ms fade in
+        const fadeOutDuration = 500; // 500ms fade out
+        const visibleDuration = this.revengeNotification.duration - fadeInDuration - fadeOutDuration;
+        
+        let alpha = 1;
+        if (elapsed < fadeInDuration) {
+            // Fade in
+            alpha = elapsed / fadeInDuration;
+        } else if (elapsed > fadeInDuration + visibleDuration) {
+            // Fade out
+            const fadeProgress = (elapsed - fadeInDuration - visibleDuration) / fadeOutDuration;
+            alpha = 1 - fadeProgress;
+        }
+        
+        const bounds = this.uiComponents.getBounds();
+        
+        // Position in bottom left corner
+        const popupX = 40;
+        const popupY = bounds.height - 80;
+        
+        this.ctx.save();
+        this.ctx.globalAlpha = alpha;
+        
+        // Draw revenge message with intense glow
+        this.uiComponents.drawText('REVENGE!', popupX, popupY, {
+            type: 'primary',
+            size: 32,
+            color: this.uiComponents.colors.error,
+            align: 'left',
+            baseline: 'middle',
+            glow: true,
+            glowIntensity: 25,
+            uppercase: true
+        });
+        
+        // Add pulsing effect
+        const pulseIntensity = Math.sin(now * 0.01) * 0.3 + 1;
+        this.ctx.shadowColor = this.uiComponents.colors.error;
+        this.ctx.shadowBlur = 30 * pulseIntensity * alpha;
+        
+        // Redraw text for extra glow
+        this.uiComponents.drawText('REVENGE!', popupX, popupY, {
+            type: 'primary',
+            size: 32,
+            color: this.uiComponents.colors.error,
+            align: 'left',
+            baseline: 'middle',
+            uppercase: true
+        });
+        
+        this.ctx.restore();
     }
     
     /**
@@ -622,6 +730,17 @@ class UIManager {
      */
     showDeath(deathData) {
         this.uiState.transitionTo('death', deathData);
+    }
+    
+    /**
+     * Show revenge notification popup
+     */
+    showRevengeNotification() {
+        this.revengeNotification = {
+            active: true,
+            startTime: Date.now(),
+            duration: 3000 // Show for 3 seconds
+        };
     }
     
     /**

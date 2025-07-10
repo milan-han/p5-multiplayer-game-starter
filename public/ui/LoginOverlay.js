@@ -25,11 +25,7 @@ class LoginOverlay {
     
     setupEventListeners() {
         const getLogicalCenter = () => {
-            const dpr = window.devicePixelRatio || 1;
-            return {
-                x: this.canvas.width / (2 * dpr),
-                y: this.canvas.height / (2 * dpr)
-            };
+            return DPR.logicalCenter();
         };
         this.handleKeyDown = (e) => {
             if (!this.isVisible) return;
@@ -142,16 +138,17 @@ class LoginOverlay {
         if (!this.isVisible) return;
         
         const ctx = this.ctx;
-        const dpr = window.devicePixelRatio || 1;
-        const centerX = this.canvas.width / (2 * dpr);
-        const centerY = this.canvas.height / (2 * dpr);
+        const center = DPR.logicalCenter();
+        const bounds = DPR.logicalBounds();
+        const centerX = center.x;
+        const centerY = center.y;
         
         ctx.save();
         
         // Draw background overlay - slightly more opaque
         ctx.fillStyle = this.palette.base;
         ctx.globalAlpha = this.config.ui.login_overlay.background_alpha;
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillRect(0, 0, bounds.width, bounds.height);
         ctx.globalAlpha = 1;
         
         // Unified cyan color for consistency

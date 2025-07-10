@@ -162,7 +162,8 @@ class UIState {
             deathTime: data.deathTime || Date.now(),
             respawnTime: data.respawnTime || (Date.now() + this.config.combat.respawn_delay_ms),
             showRespawnButton: false,
-            buttonHovered: false
+            buttonHovered: false,
+            stats: data.stats || { killStreak: 0, timeAlive: 0 }
         };
     }
     
@@ -172,7 +173,8 @@ class UIState {
             deathTime: 0,
             respawnTime: 0,
             showRespawnButton: false,
-            buttonHovered: false
+            buttonHovered: false,
+            stats: { killStreak: 0, timeAlive: 0 }
         };
     }
     

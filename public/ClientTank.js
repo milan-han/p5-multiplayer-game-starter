@@ -32,7 +32,7 @@ class ClientTank {
         this.pendingInputs = [];
     }
     
-    update(newData, isMyTank) {
+    update(newData, isMyTank, deltaTime = 16) {
         const prevData = this.data;
         this.data = newData;
         
@@ -41,11 +41,11 @@ class ClientTank {
             this.reconcileServerState();
         } else {
             // For other tanks, interpolate position smoothly
-            this.interpolatePosition();
+            this.interpolatePosition(deltaTime);
         }
         
         // Update shield alpha animation
-        this.updateShieldAlpha();
+        this.updateShieldAlpha(deltaTime);
     }
     
     reconcileServerState() {
@@ -71,14 +71,42 @@ class ClientTank {
         this.displayHeading = this.predictedHeading;
     }
     
-    interpolatePosition() {
-        // Smooth interpolation for other players
-        const positionInterp = CONFIG.player.position_interp;
-        const headingInterp = CONFIG.player.heading_interp;
+    interpolatePosition(deltaTime = 16) {
+        // Frame-rate independent smooth interpolation for other players
+        const frameRateNormalizer = deltaTime / 16; // Normalize to 60Hz (16ms)
+        const positionInterp = CONFIG.player.position_interp * frameRateNormalizer;
+        const headingInterp = CONFIG.player.heading_interp * frameRateNormalizer;
         
-        this.displayX = this.lerp(this.displayX, this.data.x, positionInterp);
-        this.displayY = this.lerp(this.displayY, this.data.y, positionInterp);
-        this.displayHeading = this.lerpAngle(this.displayHeading, this.data.heading, headingInterp);
+        // Calculate deltas
+        const deltaX = this.data.x - this.displayX;
+        const deltaY = this.data.y - this.displayY;
+        
+        // Apply position interpolation with threshold to prevent jitter
+        const positionThreshold = 0.5;
+        if (Math.abs(deltaX) > positionThreshold) {
+            this.displayX += deltaX * Math.min(positionInterp, 1.0);
+        } else {
+            this.displayX = this.data.x; // Snap when very close
+        }
+        
+        if (Math.abs(deltaY) > positionThreshold) {
+            this.displayY += deltaY * Math.min(positionInterp, 1.0);
+        } else {
+            this.displayY = this.data.y; // Snap when very close
+        }
+        
+        // Apply heading interpolation with improved smoothing
+        const headingDelta = this.getShortestAngleDiff(this.displayHeading, this.data.heading);
+        const headingThreshold = 1.0;
+        
+        if (Math.abs(headingDelta) > headingThreshold) {
+            this.displayHeading += headingDelta * Math.min(headingInterp, 1.0);
+        } else {
+            this.displayHeading = this.data.heading; // Snap when very close
+        }
+        
+        // Normalize heading
+        this.displayHeading = (this.displayHeading + 360) % 360;
     }
     
     predictInput(inputType, data) {
@@ -123,10 +151,16 @@ class ClientTank {
     
     lerpAngle(a, b, t) {
         // Shortest angle interpolation
-        let diff = b - a;
-        if (diff > 180) diff -= 360;
-        if (diff < -180) diff += 360;
+        let diff = this.getShortestAngleDiff(a, b);
         return a + diff * t;
+    }
+    
+    getShortestAngleDiff(from, to) {
+        // Calculate shortest angular difference
+        let diff = to - from;
+        while (diff > 180) diff -= 360;
+        while (diff < -180) diff += 360;
+        return diff;
     }
     
     draw(ctx, isMyTank) {
@@ -151,14 +185,21 @@ class ClientTank {
         }
     }
     
-    updateShieldAlpha() {
+    updateShieldAlpha(deltaTime = 16) {
         this.targetShieldAlpha = (this.data.shield && !this.data.speedMode) ? 1.0 : 0.0;
-        const alphaRate = CONFIG.player.shield_alpha_rate;
         
-        if (this.shieldAlpha < this.targetShieldAlpha) {
-            this.shieldAlpha = Math.min(1.0, this.shieldAlpha + alphaRate);
-        } else if (this.shieldAlpha > this.targetShieldAlpha) {
-            this.shieldAlpha = Math.max(0.0, this.shieldAlpha - alphaRate);
+        // Frame-rate independent alpha animation
+        const frameRateNormalizer = deltaTime / 16; // Normalize to 60Hz (16ms)
+        const alphaRate = CONFIG.player.shield_alpha_rate * frameRateNormalizer;
+        
+        const alphaDiff = this.targetShieldAlpha - this.shieldAlpha;
+        const alphaThreshold = 0.01;
+        
+        if (Math.abs(alphaDiff) > alphaThreshold) {
+            this.shieldAlpha += alphaDiff * Math.min(alphaRate * 3, 1.0); // Faster alpha transition
+            this.shieldAlpha = Math.max(0.0, Math.min(1.0, this.shieldAlpha)); // Clamp to valid range
+        } else {
+            this.shieldAlpha = this.targetShieldAlpha; // Snap when very close
         }
     }
     

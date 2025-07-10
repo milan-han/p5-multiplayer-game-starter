@@ -2,11 +2,12 @@
 // INTERPOLATION BUFFER - Blueprint Battle
 // =================================================================================
 
-class InterpolationBuffer {
-    constructor(deltaTime) {
+export class InterpolationBuffer {
+    constructor(deltaTime, config) {
         this.deltaTime = deltaTime;
-        this.bufferSize = CONFIG.ui.anim.interpolation_buffer_size;
-        this.interpolationDelayMs = CONFIG.ui.anim.interpolation_delay_ms;
+        this.config = config;
+        this.bufferSize = this.config.ui.anim.interpolation_buffer_size;
+        this.interpolationDelayMs = this.config.ui.anim.interpolation_delay_ms;
         
         // Ring buffer for state snapshots
         this.buffer = [];
@@ -63,7 +64,7 @@ class InterpolationBuffer {
         alpha = Math.max(0, Math.min(1, alpha));
         
         // Apply easing for smoother interpolation
-        const easedAlpha = this.applyEasing(alpha, CONFIG.ui.anim.ease_out_cubic);
+        const easedAlpha = this.applyEasing(alpha, this.config.ui.anim.ease_out_cubic);
         
         // Interpolate between the two states
         return this.interpolateStates(before.state, after.state, easedAlpha);
