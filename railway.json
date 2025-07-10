@@ -12,8 +12,8 @@
     "sleepApplication": false,
     "environmentVariables": {
       "NODE_ENV": "production",
-      "SERVER_TARGET_FPS": "20",
-      "SERVER_PERFORMANCE_WARNING_THRESHOLD": "12"
+      "SERVER_TARGET_FPS": "60",
+      "SERVER_PERFORMANCE_WARNING_THRESHOLD": "45"
     },
     "multiRegionConfig": {
       "us-west2": {
