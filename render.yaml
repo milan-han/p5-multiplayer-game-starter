@@ -1,7 +1,7 @@
 services:
   - type: web
     name: blueprint-battle
-    env: node
+    runtime: node
     plan: free
     buildCommand: npm install && npm run build:css
     startCommand: node server/server.js
@@ -14,16 +14,7 @@ services:
           name: blueprint-battle
           property: port
     healthCheckPath: /
-    autoDeploy: true
+    autoDeployTrigger: commit
     repo: https://github.com/milan-han/p5-multiplayer-game-starter.git
     branch: main
-    rootDir: .
-    
-    # Enable WebSocket support for Socket.IO
-    headers:
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff 
+    rootDir: . 
