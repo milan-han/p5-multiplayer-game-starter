@@ -39,7 +39,8 @@ class GameManager {
     // High-resolution timing for precise game loop
     // Allow environment variable override for deployment environments (e.g., Render.com free tier)
     this.targetFPS = process.env.SERVER_TARGET_FPS ? parseInt(process.env.SERVER_TARGET_FPS) : config.server.target_fps;
-    this.performanceWarningThreshold = config.server.performance_warning_threshold;
+    this.performanceWarningThreshold = process.env.SERVER_PERFORMANCE_WARNING_THRESHOLD ? 
+      parseInt(process.env.SERVER_PERFORMANCE_WARNING_THRESHOLD) : config.server.performance_warning_threshold;
     this.targetFrameTime = 1000000000n / BigInt(this.targetFPS); // nanoseconds per frame
     this.lastFrameTime = process.hrtime.bigint();
     this.isRunning = true;

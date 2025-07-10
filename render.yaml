@@ -14,9 +14,9 @@ services:
           name: blueprint-battle
           property: port
       - key: SERVER_TARGET_FPS
-        value: "30"
+        value: "15"
       - key: SERVER_PERFORMANCE_WARNING_THRESHOLD
-        value: "25"
+        value: "8"
     healthCheckPath: /
     autoDeployTrigger: commit
     repo: https://github.com/milan-han/p5-multiplayer-game-starter.git
